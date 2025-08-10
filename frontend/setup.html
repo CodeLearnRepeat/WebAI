@@ -1,0 +1,15 @@
+<!-- Optional config -->
+<script>
+    window.WEBAI_API_URL = "https://your-cloud-run-url.run.app";
+    window.WEBAI_TENANT_ID = "tenant_abc123";
+    window.WEBAI_TITLE = "Ask ABC";
+    // Optional Self-RAG flags
+    window.WEBAI_USE_RAG = true;
+    window.WEBAI_RAG_TOP_K = 4;
+  </script>
+  
+  <!-- Local persistence version -->
+  <script src="https://storage.googleapis.com/your-bucket/webai-widget-local.js" defer></script>
+  
+  <!-- Or Redis persistence version -->
+  <script src="https://storage.googleapis.com/your-bucket/webai-widget-redis.js" defer></script>

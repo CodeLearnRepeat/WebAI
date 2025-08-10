@@ -1,0 +1,20 @@
+# Prevent large/irrelevant files from bloating the build context
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+.env
+.venv/
+venv/
+.cache/
+.git/
+.gitignore
+.idea/
+.vscode/
+node_modules/
+dist/
+build/
+*.ipynb
+.DS_Store

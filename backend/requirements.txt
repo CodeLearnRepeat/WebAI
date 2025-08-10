@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic<2
+redis
+pymilvus>=2.4.4
+sentence-transformers>=3.0.0
+numpy
+openai>=1.37.0
+voyageai>=0.2.3
+jsonschema>=4.22.0

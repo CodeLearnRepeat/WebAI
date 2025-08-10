@@ -1,0 +1,27 @@
+curl -X POST https://your-cloud-run-url.run.app/register-tenant \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: your-secure-admin-key" \
+  -d '{
+    "openrouter_api_key": "your-openrouter-key",
+    "system_prompt": "You are a helpful AI assistant for ABC Company website.",
+    "allowed_domains": ["example.com", "www.example.com", "*.example.com", "localhost:3000"],
+    "model": "anthropic/claude-3.5-sonnet",
+    "rate_limit_per_minute": 30,
+    "rate_limit_per_hour": 500,
+    "rag": {
+      "enabled": true,
+      "self_rag_enabled": true,
+      "provider": "milvus",
+      "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+      "top_k": 4,
+      "milvus": {
+        "uri": "https://in03-xxxxxx.aws-us-west-2.vectordb.zillizcloud.com",
+        "token": "YOUR_ZILLIZ_TOKEN_OR_user:pass",
+        "db_name": "_default",
+        "collection": "website_chunks",
+        "vector_field": "embedding",
+        "text_field": "text",
+        "metric_type": "IP"
+      }
+    }
+  }'
