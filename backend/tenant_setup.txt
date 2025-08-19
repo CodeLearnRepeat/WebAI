@@ -1,27 +1,519 @@
-curl -X POST https://your-cloud-run-url.run.app/register-tenant \
+# =============================================================================
+# GOOGLE CLOUD RUN DEPLOYMENT COMMAND
+# =============================================================================
+# Deploy the Web3AI backend service to Google Cloud Run with comprehensive
+# environment variable configuration for multi-tenant RAG system
+
+gcloud run deploy web3ai-backend-v21-api \
+  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --cpu=2 \
+  --memory=4Gi \
+  --timeout=3600 \
+  --set-env-vars="\
+REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711,\
+WEBAI_ADMIN_KEY=0f81c721-df-9c63-a4f4bb037f82,\
+RATE_LIMIT_PER_MINUTE=30,\
+RATE_LIMIT_PER_HOUR=1000,\
+OPENROUTER_X_TITLE=Web3AI Assistant"
+
+# =============================================================================
+# ALTERNATIVE FORMAT: INDIVIDUAL --set-env-vars FLAGS
+# =============================================================================
+# For even better readability, you can use separate --set-env-vars flags:
+
+gcloud run deploy web3ai-backend-v21-api \
+  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --cpu=2 \
+  --memory=4Gi \
+  --timeout=3600 \
+  --set-env-vars="REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
+  --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-df-9c63-a4f4bb037f82" \
+  --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
+  --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
+  --set-env-vars="OPENROUTER_X_TITLE=Web3AI Assistant"
+
+# =============================================================================
+# ENVIRONMENT VARIABLES EXPLANATION
+# =============================================================================
+# REDIS_URL: Connection string for Redis cache/session storage
+#   - Host: redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com
+#   - Port: 13711
+#   - Password: S0U8FJJ9mk3q9NKqsQjm
+#
+# WEBAI_ADMIN_KEY: Administrative API key for tenant management operations
+#   - Used for registering new tenants and admin functions
+#
+# RATE_LIMIT_PER_MINUTE: Request rate limit per minute (30 requests)
+#   - Prevents API abuse and ensures fair usage
+#
+# RATE_LIMIT_PER_HOUR: Request rate limit per hour (1000 requests)
+#   - Secondary rate limiting for longer time periods
+#
+# OPENROUTER_X_TITLE: Custom header title for OpenRouter API requests
+#   - Helps identify requests in OpenRouter analytics
+# =============================================================================
+
+
+
+
+# =============================================================================
+# TENANT SETUP AND DATA INGESTION WORKFLOW
+# =============================================================================
+# This workflow demonstrates how to register a new tenant and ingest data
+# into a multi-tenant RAG system with vector storage capabilities.
+
+# =============================================================================
+# STEP 1: REGISTER TENANT
+# =============================================================================
+# This step creates a new tenant in the system with specific configurations
+# for AI model access, rate limiting, and RAG capabilities.
+
+curl -X POST https://your-container.YOUR_GCP_REGION.run.app/register-tenant \ # uses cloud run
   -H "Content-Type: application/json" \
-  -H "X-Admin-Key: your-secure-admin-key" \
+  -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   -d '{
-    "openrouter_api_key": "your-openrouter-key",
-    "system_prompt": "You are a helpful AI assistant for ABC Company website.",
-    "allowed_domains": ["example.com", "www.example.com", "*.example.com", "localhost:3000"],
-    "model": "anthropic/claude-3.5-sonnet",
+    # OpenRouter API configuration for LLM access
+    "openrouter_api_key": "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",
+    
+    # System prompt that defines the AI assistant behavior
+    # This specific prompt focuses on housing-related questions
+    "system_prompt": "You are a helpful AI assistant meant for answering housing related questions. Use the provided context to answer questions accurately.",
+    
+    # Domain whitelist for security - only these domains can access this tenant
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app"],
+    
+    # Google Gemini 2.5 Flash model for fast, cost-effective responses
+    "model": "google/gemini-2.5-flash",
+    
+    # Rate limiting configuration to prevent abuse
+    "rate_limit_per_minute": 30,    # Max 30 requests per minute
+    "rate_limit_per_hour": 500,     # Max 500 requests per hour
+    
+    # RAG (Retrieval-Augmented Generation) configuration
+    "rag": {
+      "enabled": true,              # Enable RAG functionality
+      "self_rag_enabled": true,     # Enable self-reflective RAG for better accuracy. It's the only option currently
+      
+      # Vector database configuration - using Milvus for scalable vector storage. Its the only option for vecto db currently
+      "provider": "milvus",
+      
+      # Embedding configuration - using Voyage AI for specialized legal embeddings. "openai" and their models are also supported.
+      "embedding_provider": "voyageai",
+      "embedding_model": "voyage-law-2",    # Specialized for legal/regulatory content
+      
+      # API keys for external services
+      "provider_keys": {
+        "voyageai": "pa-bjQqpaOLZQ9Z8V35322F7XboWIYsVQklWdg_25RdNkK"
+      },
+      
+      # Retrieval configuration
+      "top_k": 5,                   # Return top 5 most relevant documents
+      
+      # Milvus vector database specific configuration
+      "milvus": {
+        "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
+        "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
+        "db_name": "RHTAI",           # Database name (likely "Real Housing Tenant AI")
+        "collection": "website_info", # Collection for storing website content. No need to create the collection.
+        "vector_field": "embedding",  # Field name for vector embeddings
+        "text_field": "text",         # Field name for text content
+        "metadata_field": "metadata", # Field name for document metadata
+        "metric_type": "IP"           # Inner Product similarity metric, there is also HNSW or others that Milvus supports that you can use.
+      }
+    }
+  }'
+
+# Expected Response: Returns a unique tenant ID for subsequent operations
+# Tenant ID received: tenant_YOUR_TENANT_ID
+
+# =============================================================================
+# STEP 2: INGEST DATA INTO RAG SYSTEM
+# =============================================================================
+# This step uploads and processes documents into the vector database
+# using a predefined schema for consistent data structure.
+
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file \
+  # NOTE: Base URL was missing in original - added for completeness
+  
+  # Tenant identification header (from Step 1 response)
+  -H "X-Tenant-Id: tenant_PyKfd99yWzORf6ExHk0Nbw" \
+  
+  # File upload - JSON file containing scraped website data
+  -F "file=@/Users/finn/Desktop/BATCH/scrape/anotherone.json" \
+  # NOTE: Added '@' symbol for proper file upload syntax
+  
+  # Schema configuration for data processing
+  -F 'schema_json={
+    # Input format specification
+    "format": "json_array",         # Expects an array of JSON objects
+    
+    # Field mapping configuration - maps source JSON fields to system fields
+    "mapping": {
+      "content_path": "raw_text",           # Main content field
+      "metadata_paths": {
+        "url": "source_url",                # Source URL of the document
+        "title": "document_title",          # Title of the document
+        "category": "jurisdiction",         # Legal jurisdiction category
+        "scraped_at": "scraped_at_utc",    # Timestamp of data collection
+        "extraction_method": "extraction_method"  # How the data was extracted
+      }
+    },
+    
+    # Text chunking strategy for optimal vector storage and retrieval
+    "chunking": {
+      "strategy": "recursive",      # Recursive text splitting algorithm
+      "max_chars": 1200,           # Maximum characters per chunk
+      "overlap": 150               # Character overlap between chunks (prevents context loss)
+    },
+    
+    # JSON schema validation to ensure data quality
+    "validation_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "required": ["raw_text", "source_url", "document_title"],  # Mandatory fields
+      "properties": {
+        # Field definitions with type constraints
+        "raw_text": {"type": "string"},         # Main document content
+        "source_url": {"type": "string"},      # URL where content was found
+        "document_title": {"type": "string"},  # Document title/name
+        "jurisdiction": {"type": "string"},    # Legal jurisdiction (optional)
+        "scraped_at_utc": {"type": "string"},  # Collection timestamp (optional)
+        "extraction_method": {"type": "string"} # Extraction method used (optional)
+      }
+    }
+  }' \
+  
+  # Embedding configuration (must match tenant settings)
+  -F "embedding_provider=voyageai" \      # Use Voyage AI for embeddings
+  -F "embedding_model=voyage-law-2"       # Legal-specialized embedding model
+
+# =============================================================================
+# WORKFLOW SUMMARY
+# =============================================================================
+# 1. Register tenant with specific AI model, RAG, and security configurations
+# 2. Upload and process documents using structured schema
+# 3. Documents are chunked, embedded, and stored in Milvus vector database
+# 4. System is ready to answer questions using RAG with legal content
+#
+# TECHNICAL DETAILS:
+# - Uses Google Gemini 2.5 Flash for cost-effective AI responses
+# - Voyage Law-2 embeddings optimized for legal/regulatory content
+# - Milvus vector database for scalable similarity search
+# - Self-RAG enabled for improved response accuracy
+# - Rate limiting: 30/min, 500/hour to prevent abuse
+# - Domain-restricted access for security
+# =============================================================================
+
+
+# Step 1: Register tenant 
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/register-tenant \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
+  -d '{
+    "openrouter_api_key": "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",
+    "system_prompt": "You are a helpful AI assistant meant for answering housing related questions. Use the provided context to answer questions accurately.",
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app"],
+    "model": "google/gemini-2.5-flash",
     "rate_limit_per_minute": 30,
     "rate_limit_per_hour": 500,
     "rag": {
       "enabled": true,
       "self_rag_enabled": true,
       "provider": "milvus",
-      "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-      "top_k": 4,
+      "embedding_provider": "voyageai",
+      "embedding_model": "voyage-law-2",
+      "provider_keys": {
+        "voyageai": "pa-bjQqpaOLZQ9Z8V35322F7XboWIYsVQklWdg_25RdNkK"
+      },
+      "top_k": 5,
       "milvus": {
-        "uri": "https://in03-xxxxxx.aws-us-west-2.vectordb.zillizcloud.com",
-        "token": "YOUR_ZILLIZ_TOKEN_OR_user:pass",
-        "db_name": "_default",
-        "collection": "website_chunks",
+        "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
+        "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
+        "db_name": "RHTAI",
+        "collection": "website_info",
         "vector_field": "embedding",
         "text_field": "text",
+        "metadata_field": "metadata",
         "metric_type": "IP"
       }
     }
   }'
+
+# Step 2: Ingest data (corrected schema)
+curl -X POST  https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file \
+  -H "X-Tenant-Id: YOUR_TENANT_ID" \
+  -F "file=@/THE/PATH/TO/YOUR/FILE/YOUR_FILE.json" \
+  -F 'schema_json={
+    "format": "json_array",
+    "mapping": {
+      "content_path": "raw_text",  #THIS IS YOUR WEBPAGE CONTENT
+      "metadata_paths": { #XTRA STUFF YOU CAN ADD
+        "url": "source_url",
+        "title": "document_title",
+        "category": "jurisdiction",
+        "scraped_at": "scraped_at_utc",
+        "extraction_method": "extraction_method"
+      }
+    },
+    "chunking": {
+      "strategy": "recursive",
+      "max_chars": 1200,
+      "overlap": 150
+    },
+    "validation_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "required": ["raw_text", "source_url", "document_title"],
+      "properties": {    #This these consist of your different json elements and their formats
+        "raw_text": {"type": "string"},
+        "source_url": {"type": "string"},
+        "document_title": {"type": "string"},
+        "jurisdiction": {"type": "string"},
+        "scraped_at_utc": {"type": "string"},
+        "extraction_method": {"type": "string"}
+      }
+    }
+  }' \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2"
+
+
+
+
+
+Step 1: System Deployment
+Deploy Backend to Google Cloud Run
+# Deploy the Web3AI backend service with streaming capabilities
+gcloud run deploy web3ai-backend-v21-api \
+  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --cpu=2 \
+  --memory=4Gi \
+  --timeout=3600 \
+  --set-env-vars="REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
+  --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
+  --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
+  --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
+  --set-env-vars="OPENROUTER_X_TITLE=Web3AI Assistant"
+
+# Expected output: Service URL
+# https://web3ai-backend-v21-api-180395924844.us-central1.run.app
+
+bash
+
+
+Step 2: Tenant Registration with Enhanced RAG Configuration
+Register Tenant with Streaming-Optimized Configuration
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/register-tenant \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
+  -d '{
+    "openrouter_api_key": "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",
+    "system_prompt": "You are a helpful AI assistant meant for answering housing related questions. Use the provided context to answer questions accurately.",
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app"],
+    "model": "google/gemini-2.5-flash",
+    "rate_limit_per_minute": 30,
+    "rate_limit_per_hour": 500,
+    "rag": {
+      "enabled": true,
+      "self_rag_enabled": true,
+      "provider": "milvus",
+      "embedding_provider": "voyageai",
+      "embedding_model": "voyage-law-2",
+      "provider_keys": {
+        "voyageai": "pa-bjQqpaOLZQ9Z8V35322F7XboWIYsVQklWdg_25RdNkK"
+      },
+      "top_k": 5,
+      "milvus": {
+        "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
+        "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
+        "db_name": "RHTAI",
+        "collection": "website_info",
+        "vector_field": "embedding",
+        "text_field": "text",
+        "metadata_field": "metadata",
+        "metric_type": "IP"
+      }
+    }
+  }'
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "tenant_id": "tenant_ABC123DEF456GHI789",
+#   "message": "Tenant registered successfully"
+# }
+
+# Save the tenant ID for subsequent requests
+export TENANT_ID="tenant_ABC123DEF456GHI789"
+
+bash
+
+
+
+Step 3: Verify System Capabilities
+Check Processing Capabilities
+curl -X GET https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/processing-capabilities \
+  -H "X-Tenant-Id: $TENANT_ID"
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "capabilities": {
+#     "providers": ["sentence_transformers", "voyageai"],
+#     "features": {
+#       "streaming_processing": true,
+#       "token_aware_chunking": true,
+#       "intelligent_batching": true,
+#       "progress_tracking": true,
+#       "large_file_support": true,
+#       "compression_support": ["gzip"],
+#       "formats_supported": ["json_array", "ndjson"]
+#     },
+#     "limits": {
+#       "max_file_size_mb": 1000,
+#       "max_tokens_per_chunk": 2000,
+#       "max_chunks_per_batch": 950,
+#       "max_tokens_per_batch": 9500
+#     }
+#   }
+# }
+
+bash
+
+
+
+Step 4: Analyze File Before Processing (Optional but Recommended)
+Get File Statistics and Processing Recommendations
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/analyze-file \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -F "file=@/path/to/your/large_dataset.json"
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "file_analysis": {
+#     "file_size_bytes": 52428800,
+#     "detected_format": "json_array",
+#     "estimated_items": 2500,
+#     "file_path": "/tmp/large_dataset.json"
+#   },
+#   "processing_estimates": {
+#     "estimated_processing_time_minutes": 15,
+#     "estimated_chunks": 8750,
+#     "estimated_embedding_batches": 10
+#   },
+#   "recommendations": {
+#     "approach": "streaming",
+#     "use_batching": true,
+#     "enable_token_aware_chunking": true,
+#     "estimated_embedding_cost": {
+#       "provider": "voyageai",
+#       "estimated_api_calls": 10
+#     }
+#   }
+# }
+
+bash
+
+
+
+Step 5: Option A - Streaming File Upload for Large Files
+Prepare Schema Configuration
+Create a schema configuration file for your data structure:
+
+cat > schema_config.json << 'EOF'
+{
+  "format": "json_array",
+  "mapping": {
+    "content_path": "raw_text",
+    "metadata_paths": {
+      "url": "source_url",
+      "title": "document_title",
+      "category": "jurisdiction",
+      "scraped_at": "scraped_at_utc",
+      "extraction_method": "extraction_method"
+    }
+  },
+  "chunking": {
+    "strategy": "token_aware",
+    "max_tokens": 1000,
+    "overlap_tokens": 100
+  },
+  "validation_schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["raw_text", "source_url", "document_title"],
+    "properties": {
+      "raw_text": {"type": "string"},
+      "source_url": {"type": "string"},
+      "document_title": {"type": "string"},
+      "jurisdiction": {"type": "string"},
+      "scraped_at_utc": {"type": "string"},
+      "extraction_method": {"type": "string"}
+    }
+  }
+}
+EOF
+
+bash
+
+
+
+Execute Streaming Upload with Enhanced Features
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -F "file=@/path/to/your/large_dataset.json" \
+  -F "schema_json=$(cat schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "upserted": 8750,
+#   "dim": 1024,
+#   "processing_stats": {
+#     "total_items_processed": 2500,
+#     "total_chunks_created": 8750,
+#     "total_embeddings_generated": 8750,
+#     "batches_processed": 10,
+#     "avg_batch_size": 875,
+#     "processing_time_seconds": 892.5,
+#     "memory_efficient": true,
+#     "streaming_enabled": true,
+#     "token_aware_chunking": true
+#   },
+#   "cost_optimization": {
+#     "api_calls_made": 10,
+#     "api_calls_saved": 8740,
+#     "cost_reduction_percentage": 99.9
+#   }
+# }
+
+bash
+
+
+
+Alternative: Compressed File Upload
+If your file is compressed, the system automatically handles decompression:
+
+# Upload gzipped file (automatically detected and decompressed)
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -F "file=@/path/to/your/large_dataset.json.gz" \
+  -F "schema_json=$(cat schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"

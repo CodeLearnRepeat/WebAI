@@ -1,10 +1,8 @@
-import json, secrets
+import json
 from datetime import datetime
 from typing import Optional, Dict
 from app.core.redis import get_redis_client
-
-def generate_tenant_id() -> str:
-    return f"tenant_{secrets.token_urlsafe(16)}"
+from app.services.api_keys import generate_tenant_id
 
 def get_tenant_config(tenant_id: str) -> Optional[Dict]:
     try:

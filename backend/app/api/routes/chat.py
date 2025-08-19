@@ -32,7 +32,15 @@ async def chat_stream(request_data: ChatRequest, request: Request, x_tenant_id: 
         raise HTTPException(status_code=429, detail=rate_msg)
 
     try:
+        # DEBUG: Log conversation retrieval
+        print(f"[DEBUG] Session ID: {request_data.session_id}")
+        print(f"[DEBUG] use_redis_conversations: {request_data.use_redis_conversations}")
+        
         history = await get_conversation_history(x_tenant_id, request_data.session_id, request_data.use_redis_conversations)
+        
+        print(f"[DEBUG] Retrieved history length: {len(history)} messages")
+        if history:
+            print(f"[DEBUG] Last message in history: {history[-1] if history else 'None'}")
 
         # Build base messages (for non-RAG fallback streaming)
         messages = []
@@ -103,6 +111,7 @@ async def chat_stream(request_data: ChatRequest, request: Request, x_tenant_id: 
             if full_response:
                 history.append({"role": "user", "content": request_data.message})
                 history.append({"role": "assistant", "content": full_response})
+                print(f"[DEBUG] Saving conversation with {len(history)} messages to Redis: {request_data.use_redis_conversations}")
                 await save_conversation_history(x_tenant_id, request_data.session_id, history, request_data.use_redis_conversations)
 
         return StreamingResponse(generate(), media_type="text/event-stream")

@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/server/node-polyfill-form.ts"],"names":["global","FormData","require","Blob"],"mappings":"AAAA;;CAEC;AAED,IAAI,CAACA,OAAOC,QAAQ,EAAE;IACpB,MAAM,EAAEA,QAAQ,EAAE,GAAGC,QAAQ;IAC7BF,OAAOC,QAAQ,GAAGA;AACpB;AAEA,IAAI,CAACD,OAAOG,IAAI,EAAE;IAChB,MAAM,EAAEA,IAAI,EAAE,GAAGD,QAAQ;IACzBF,OAAOG,IAAI,GAAGA;AAChB"}

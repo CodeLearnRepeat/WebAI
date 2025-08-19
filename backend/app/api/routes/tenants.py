@@ -23,17 +23,12 @@ async def register_tenant(registration: TenantRegistration, x_admin_key: str = H
             for field in required:
                 if not milvus.get(field):
                     raise HTTPException(status_code=400, detail=f"rag.milvus.{field} is required when RAG is enabled")
+        emb_provider = rag.get("embedding_provider", "sentence_transformers")
+        if emb_provider == "openai" and not (rag.get("provider_keys", {}).get("openai")):
+            raise HTTPException(status_code=400, detail="OpenAI embedding requires rag.provider_keys.openai")
+        if emb_provider == "voyageai" and not (rag.get("provider_keys", {}).get("voyageai")):
+            raise HTTPException(status_code=400, detail="VoyageAI embedding requires rag.provider_keys.voyageai")
         config["rag"] = rag
-        if rag.get("enabled"):
-    if rag.get("provider") == "milvus":
-        milvus = rag.get("milvus") or {}
-        if not milvus.get("uri") or not milvus.get("collection"):
-            raise HTTPException(status_code=400, detail="rag.milvus.uri and rag.milvus.collection are required when enabling RAG")
-    emb_provider = rag.get("embedding_provider", "sentence_transformers")
-    if emb_provider == "openai" and not (rag.get("provider_keys", {}).get("openai")):
-        raise HTTPException(status_code=400, detail="OpenAI embedding requires rag.provider_keys.openai")
-    if emb_provider == "voyageai" and not (rag.get("provider_keys", {}).get("voyageai")):
-        raise HTTPException(status_code=400, detail="VoyageAI embedding requires rag.provider_keys.voyageai")
 
     save_tenant_config(tenant_id, config)
     print(f"New tenant registered: {tenant_id} with domains: {registration.allowed_domains}")
@@ -61,21 +56,17 @@ async def update_tenant(tenant_id: str, update: TenantUpdate, x_admin_key: str =
         config["active"] = update.active
     if update.rag is not None:
         rag = update.rag.dict()
-        if rag.get("enabled") and rag.get("provider") == "milvus":
-            milvus = rag.get("milvus") or {}
-            if not milvus.get("uri") or not milvus.get("collection"):
-                raise HTTPException(status_code=400, detail="rag.milvus.uri and rag.milvus.collection are required when enabling RAG")
+        if rag.get("enabled"):
+            if rag.get("provider") == "milvus":
+                milvus = rag.get("milvus") or {}
+                if not milvus.get("uri") or not milvus.get("collection"):
+                    raise HTTPException(status_code=400, detail="rag.milvus.uri and rag.milvus.collection are required when enabling RAG")
+            emb_provider = rag.get("embedding_provider", "sentence_transformers")
+            if emb_provider == "openai" and not (rag.get("provider_keys", {}).get("openai")):
+                raise HTTPException(status_code=400, detail="OpenAI embedding requires rag.provider_keys.openai")
+            if emb_provider == "voyageai" and not (rag.get("provider_keys", {}).get("voyageai")):
+                raise HTTPException(status_code=400, detail="VoyageAI embedding requires rag.provider_keys.voyageai")
         config["rag"] = rag
-    if rag.get("enabled"):
-    if rag.get("provider") == "milvus":
-        milvus = rag.get("milvus") or {}
-        if not milvus.get("uri") or not milvus.get("collection"):
-            raise HTTPException(status_code=400, detail="rag.milvus.uri and rag.milvus.collection are required when enabling RAG")
-    emb_provider = rag.get("embedding_provider", "sentence_transformers")
-    if emb_provider == "openai" and not (rag.get("provider_keys", {}).get("openai")):
-        raise HTTPException(status_code=400, detail="OpenAI embedding requires rag.provider_keys.openai")
-    if emb_provider == "voyageai" and not (rag.get("provider_keys", {}).get("voyageai")):
-        raise HTTPException(status_code=400, detail="VoyageAI embedding requires rag.provider_keys.voyageai")
 
     # Update timestamp
     from datetime import datetime
