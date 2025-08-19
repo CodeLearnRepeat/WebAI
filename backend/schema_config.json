@@ -1,0 +1,31 @@
+{
+  "format": "json_array",
+  "mapping": {
+    "content_path": "raw_text",
+    "metadata_paths": {
+      "url": "source_url",
+      "title": "document_title",
+      "category": "jurisdiction",
+      "scraped_at": "scraped_at_utc",
+      "extraction_method": "extraction_method"
+    }
+  },
+  "chunking": {
+    "strategy": "token_aware",
+    "max_tokens": 1000,
+    "overlap_tokens": 100
+  },
+  "validation_schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["raw_text", "source_url", "document_title"],
+    "properties": {
+      "raw_text": {"type": "string"},
+      "source_url": {"type": "string"},
+      "document_title": {"type": "string"},
+      "jurisdiction": {"type": "string"},
+      "scraped_at_utc": {"type": "string"},
+      "extraction_method": {"type": "string"}
+    }
+  }
+}

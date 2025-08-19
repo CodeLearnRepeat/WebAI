@@ -202,7 +202,7 @@ async def ingest_json_file_streaming(
     batch_size: int = 100
 ) -> Dict:
     """
-    Ingest JSON file using streaming parser with token-aware batching.
+    Ingest JSON file using streaming parser with comprehensive validation.
     
     Args:
         file_path: Path to JSON file
@@ -216,14 +216,33 @@ async def ingest_json_file_streaming(
         
     Returns:
         Dictionary with ingestion results and statistics
+        
+    Raises:
+        RuntimeError: If ingestion fails with detailed error information
     """
     logger.info(f"Starting streaming ingestion of {file_path}")
+    logger.info(f"Configuration: provider={emb_provider}, model={emb_model}, batch_size={batch_size}")
+    logger.info(f"Milvus target: collection={milvus_conf.get('collection', 'unknown')}")
+    
+    # Validate inputs
+    if not file_path or not Path(file_path).exists():
+        raise ValueError(f"File not found: {file_path}")
+    
+    if not schema_config.get("mapping", {}).get("content_path"):
+        raise ValueError("schema_config must specify mapping.content_path")
+    
+    if not milvus_conf.get("collection") or not milvus_conf.get("uri"):
+        raise ValueError("milvus_conf must specify collection and uri")
     
     stats = IngestStats()
     start_time = asyncio.get_event_loop().time()
     
-    # Initialize embedding service
-    embedding_service = BatchEmbeddingService(emb_provider, emb_model, provider_key)
+    # Initialize embedding service with validation
+    try:
+        embedding_service = BatchEmbeddingService(emb_provider, emb_model, provider_key)
+        logger.info("Embedding service initialized successfully")
+    except Exception as e:
+        raise RuntimeError(f"Failed to initialize embedding service: {e}")
     
     # Collection dimension tracking
     collection_dim = None
@@ -233,23 +252,53 @@ async def ingest_json_file_streaming(
     text_batch = []
     metadata_batch = []
     
+    # Tracking for validation
+    total_upserted = 0
+    batch_results = []
+    
     try:
+        # Validate file can be processed
+        logger.info("Starting file processing...")
+        item_count = 0
+        
         # Process file with streaming parser
         async for item in process_json_file(file_path, schema_config):
+            if not item.text or not item.text.strip():
+                logger.warning(f"Skipping empty text item at index {item.source_index}")
+                continue
+                
             text_batch.append(item.text)
             metadata_batch.append(item.metadata)
             stats.total_chunks_created += 1
+            item_count += 1
             
             # Process batch when it reaches batch_size
             if len(text_batch) >= batch_size:
-                result = await _process_text_batch(
-                    text_batch, metadata_batch, milvus_conf, embedding_service,
-                    collection_dim, collection_initialized, stats
-                )
+                logger.info(f"Processing batch {stats.batches_processed + 1} with {len(text_batch)} items")
                 
-                if not collection_initialized:
-                    collection_dim = result["dim"]
-                    collection_initialized = True
+                try:
+                    result = await _process_text_batch(
+                        text_batch, metadata_batch, milvus_conf, embedding_service,
+                        collection_dim, collection_initialized, stats
+                    )
+                    
+                    # Validate batch result
+                    if result.get("status") != "success":
+                        error_msg = f"Batch processing failed: {result}"
+                        logger.error(error_msg)
+                        raise RuntimeError(error_msg)
+                    
+                    batch_results.append(result)
+                    total_upserted += result.get("upserted", 0)
+                    
+                    if not collection_initialized:
+                        collection_dim = result["dim"]
+                        collection_initialized = True
+                        logger.info(f"Collection initialized with dimension {collection_dim}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to process batch {stats.batches_processed + 1}: {e}")
+                    raise RuntimeError(f"Batch processing failed at item {item_count}: {str(e)}") from e
                 
                 # Clear batch
                 text_batch = []
@@ -259,15 +308,48 @@ async def ingest_json_file_streaming(
                 if progress_callback:
                     progress_callback(stats.total_chunks_created, None)  # Total unknown in streaming
         
-        # Process final batch
+        # Process final batch if any items remain
         if text_batch:
-            result = await _process_text_batch(
-                text_batch, metadata_batch, milvus_conf, embedding_service,
-                collection_dim, collection_initialized, stats
-            )
+            logger.info(f"Processing final batch with {len(text_batch)} items")
             
-            if not collection_initialized:
-                collection_dim = result["dim"]
+            try:
+                result = await _process_text_batch(
+                    text_batch, metadata_batch, milvus_conf, embedding_service,
+                    collection_dim, collection_initialized, stats
+                )
+                
+                if result.get("status") != "success":
+                    error_msg = f"Final batch processing failed: {result}"
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+                
+                batch_results.append(result)
+                total_upserted += result.get("upserted", 0)
+                
+                if not collection_initialized:
+                    collection_dim = result["dim"]
+                    
+            except Exception as e:
+                logger.error(f"Failed to process final batch: {e}")
+                raise RuntimeError(f"Final batch processing failed: {str(e)}") from e
+        
+        # Validate overall results
+        if item_count == 0:
+            logger.warning("No items were processed from the file")
+            return {
+                "status": "completed",
+                "upserted": 0,
+                "dim": 0,
+                "message": "No items found in file",
+                "statistics": {
+                    "total_items_processed": 0,
+                    "total_chunks_created": 0,
+                    "total_embeddings_generated": 0,
+                    "batches_processed": 0,
+                    "processing_time": 0,
+                    "errors_encountered": 0
+                }
+            }
         
         # Final statistics
         stats.processing_time = asyncio.get_event_loop().time() - start_time
@@ -275,31 +357,59 @@ async def ingest_json_file_streaming(
         # Get embedding service statistics
         embedding_stats = embedding_service.get_batching_stats()
         
-        logger.info(
-            f"Completed streaming ingestion: {stats.total_chunks_created} chunks, "
-            f"{stats.total_embeddings_generated} embeddings, "
-            f"{stats.batches_processed} Milvus batches in {stats.processing_time:.2f}s"
+        # Validation: Check if any data was actually inserted
+        if total_upserted == 0 and stats.total_chunks_created > 0:
+            error_msg = f"Critical error: {stats.total_chunks_created} items processed but 0 upserted to Milvus"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        success_message = (
+            f"Successfully completed ingestion: {stats.total_chunks_created} chunks processed, "
+            f"{total_upserted} embeddings stored, "
+            f"{stats.batches_processed} batches in {stats.processing_time:.2f}s"
         )
+        logger.info(success_message)
         
         return {
             "status": "completed",
-            "upserted": stats.total_embeddings_generated,
+            "upserted": total_upserted,
             "dim": collection_dim or 0,
+            "message": success_message,
             "statistics": {
-                "total_items_processed": stats.total_items_processed,
+                "total_items_processed": item_count,
                 "total_chunks_created": stats.total_chunks_created,
                 "total_embeddings_generated": stats.total_embeddings_generated,
+                "total_upserted": total_upserted,
                 "batches_processed": stats.batches_processed,
                 "processing_time": stats.processing_time,
                 "errors_encountered": stats.errors_encountered,
-                "embedding_batching": embedding_stats
+                "embedding_batching": embedding_stats,
+                "batch_results": batch_results
             }
         }
         
     except Exception as e:
-        logger.error(f"Error during streaming ingestion: {e}")
+        # Enhanced error reporting
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "processing_stats": {
+                "items_processed": item_count if 'item_count' in locals() else 0,
+                "chunks_created": stats.total_chunks_created,
+                "embeddings_generated": stats.total_embeddings_generated,
+                "batches_completed": stats.batches_processed,
+                "errors_encountered": stats.errors_encountered,
+                "processing_time": asyncio.get_event_loop().time() - start_time
+            },
+            "file_path": str(file_path),
+            "collection": milvus_conf.get("collection", "unknown")
+        }
+        
+        logger.error(f"Streaming ingestion failed: {error_details}")
         stats.errors_encountered += 1
-        raise
+        
+        # Re-raise with enhanced context
+        raise RuntimeError(f"Ingestion failed: {str(e)} | Details: {error_details}") from e
 
 
 async def _process_text_batch(
@@ -311,18 +421,70 @@ async def _process_text_batch(
     collection_initialized: bool,
     stats: IngestStats
 ) -> Dict:
-    """Process a batch of texts for embedding and storage."""
+    """Process a batch of texts for embedding and storage with validation."""
     if not texts:
-        return {"upserted": 0, "dim": collection_dim or 0}
+        logger.info("Empty text batch, skipping processing")
+        return {"upserted": 0, "dim": collection_dim or 0, "status": "skipped"}
     
-    # Embed texts
-    vecs, dim = await embedding_service.embed_texts_with_batching(texts)
-    stats.total_embeddings_generated += len(vecs)
+    logger.info(f"Processing batch with {len(texts)} texts")
     
-    # Initialize collection if needed
-    if not collection_initialized:
-        await asyncio.to_thread(
-            ensure_collection,
+    try:
+        # Embed texts with error checking
+        logger.debug("Starting embedding generation...")
+        vecs, dim = await embedding_service.embed_texts_with_batching(texts)
+        
+        if not vecs or len(vecs) != len(texts):
+            raise ValueError(f"Embedding generation failed: expected {len(texts)} embeddings, got {len(vecs)}")
+        
+        stats.total_embeddings_generated += len(vecs)
+        logger.info(f"Generated {len(vecs)} embeddings with dimension {dim}")
+        
+        # Initialize collection if needed with validation
+        if not collection_initialized:
+            logger.info("Initializing Milvus collection...")
+            collection_result = await asyncio.to_thread(
+                ensure_collection,
+                uri=milvus_conf["uri"],
+                token=milvus_conf.get("token"),
+                db_name=milvus_conf.get("db_name"),
+                collection=milvus_conf["collection"],
+                vector_field=milvus_conf.get("vector_field", "embedding"),
+                text_field=milvus_conf.get("text_field", "text"),
+                metadata_field=milvus_conf.get("metadata_field", "metadata"),
+                dim=dim,
+                metric_type=milvus_conf.get("metric_type", "IP"),
+            )
+            
+            if not collection_result.get("exists", False):
+                error_msg = f"Failed to ensure collection exists: {collection_result.get('error', 'Unknown error')}"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+            
+            logger.info(f"Collection status: {collection_result.get('status', 'unknown')}")
+        
+        # Prepare rows for insertion
+        logger.debug("Preparing data rows for insertion...")
+        rows = []
+        for i, text in enumerate(texts):
+            if not text or not text.strip():
+                logger.warning(f"Skipping empty text at index {i}")
+                continue
+                
+            row = {
+                "text": text,
+                "embedding": vecs[i],
+                "metadata": json.dumps(metadatas[i] if i < len(metadatas) else {}, ensure_ascii=False)
+            }
+            rows.append(row)
+        
+        if not rows:
+            logger.warning("No valid rows to insert after filtering")
+            return {"upserted": 0, "dim": dim, "status": "no_valid_data"}
+        
+        # Insert to Milvus with validation
+        logger.info(f"Inserting {len(rows)} rows to Milvus...")
+        upsert_result = await asyncio.to_thread(
+            upsert_texts,
             uri=milvus_conf["uri"],
             token=milvus_conf.get("token"),
             db_name=milvus_conf.get("db_name"),
@@ -332,35 +494,37 @@ async def _process_text_batch(
             metadata_field=milvus_conf.get("metadata_field", "metadata"),
             dim=dim,
             metric_type=milvus_conf.get("metric_type", "IP"),
+            rows=rows,
         )
-    
-    # Prepare rows
-    rows = []
-    for i, text in enumerate(texts):
-        row = {
-            "text": text,
-            "embedding": vecs[i],
-            "metadata": json.dumps(metadatas[i] if i < len(metadatas) else {}, ensure_ascii=False)
+        
+        # Validate insertion result
+        if upsert_result.get("status") != "success":
+            error_msg = f"Milvus insertion failed: {upsert_result.get('message', 'Unknown error')}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        inserted_count = upsert_result.get("inserted_count", 0)
+        requested_count = upsert_result.get("requested_count", len(rows))
+        
+        if inserted_count != requested_count:
+            logger.warning(f"Partial insertion: {inserted_count}/{requested_count} rows inserted")
+        else:
+            logger.info(f"Successfully inserted all {inserted_count} rows")
+        
+        stats.batches_processed += 1
+        
+        return {
+            "upserted": inserted_count,
+            "dim": dim,
+            "status": "success",
+            "requested": requested_count,
+            "milvus_result": upsert_result
         }
-        rows.append(row)
-    
-    # Insert to Milvus
-    await asyncio.to_thread(
-        upsert_texts,
-        uri=milvus_conf["uri"],
-        token=milvus_conf.get("token"),
-        db_name=milvus_conf.get("db_name"),
-        collection=milvus_conf["collection"],
-        vector_field=milvus_conf.get("vector_field", "embedding"),
-        text_field=milvus_conf.get("text_field", "text"),
-        metadata_field=milvus_conf.get("metadata_field", "metadata"),
-        dim=dim,
-        metric_type=milvus_conf.get("metric_type", "IP"),
-        rows=rows,
-    )
-    
-    stats.batches_processed += 1
-    return {"upserted": len(rows), "dim": dim}
+        
+    except Exception as e:
+        logger.error(f"Error processing text batch: {e}")
+        stats.errors_encountered += 1
+        raise RuntimeError(f"Batch processing failed: {str(e)}") from e
 
 
 def create_enhanced_chunking_config(

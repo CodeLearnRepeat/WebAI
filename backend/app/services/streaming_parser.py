@@ -89,14 +89,12 @@ class StreamingJSONProcessor:
             raise
     
     async def _stream_json_array(self) -> AsyncIterator[ProcessedItem]:
-        """Stream parse JSON array incrementally using ijson."""
+
         try:
             # Use ijson to parse array items one by one
             parser = ijson.parse(self.file_stream)
-            current_item = {}
+            items = {}  # Store items by their array index
             item_index = 0
-            in_item = False
-            current_path = []
             
             for prefix, event, value in parser:
                 self.stats.bytes_processed += 1  # Approximate
@@ -107,34 +105,73 @@ class StreamingJSONProcessor:
                 elif event == 'end_array' and prefix == '':
                     # Root array ended
                     break
-                elif event == 'start_map' and not prefix:
-                    # New top-level item starting
-                    current_item = {}
-                    in_item = True
-                    current_path = []
-                elif event == 'end_map' and not prefix:
-                    # Top-level item complete
-                    if in_item and current_item:
-                        async for processed in self._process_item(current_item, item_index):
+                elif event == 'start_map' and prefix.isdigit():
+                    # New array item starting (prefix is "0", "1", "2", etc.)
+                    array_index = int(prefix)
+                    items[array_index] = {}
+                elif event == 'end_map' and prefix.isdigit():
+                    # Array item complete
+                    array_index = int(prefix)
+                    if array_index in items:
+                        async for processed in self._process_item(items[array_index], array_index):
                             yield processed
-                        item_index += 1
+                        del items[array_index]  # Free memory
                         self.stats.items_processed += 1
-                    in_item = False
-                elif in_item:
-                    # Build current item
-                    try:
-                        self._set_nested_value(current_item, prefix, event, value)
-                    except Exception as e:
-                        logger.warning(f"Error setting nested value at {prefix}: {e}")
-                        self.stats.errors_encountered += 1
+                elif prefix and '.' in prefix:
+                    # Nested property within an array item (e.g., "0.raw_text", "1.source_url")
+                    parts = prefix.split('.', 1)
+                    if parts[0].isdigit():
+                        array_index = int(parts[0])
+                        if array_index not in items:
+                            items[array_index] = {}
+                        
+                        # Set nested value
+                        try:
+                            self._set_nested_value_simple(items[array_index], parts[1], event, value)
+                        except Exception as e:
+                            logger.warning(f"Error setting nested value at {prefix}: {e}")
+                            self.stats.errors_encountered += 1
+                elif prefix.isdigit() and event in ('string', 'number', 'boolean', 'null'):
+                    # Direct value in array item (shouldn't happen with objects, but handle it)
+                    array_index = int(prefix)
+                    if array_index not in items:
+                        items[array_index] = value
                         
         except Exception as e:
             logger.error(f"Error parsing JSON array: {e}")
             self.stats.errors_encountered += 1
             raise
+
+    def _set_nested_value_simple(self, obj: Dict, path: str, event: str, value: Any):
+        """Set nested value in object using simplified path."""
+        if not path:
+            return
+            
+        # Split path and navigate to parent
+        parts = path.split('.')
+        current = obj
+        
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        
+        # Set final value
+        final_key = parts[-1]
+        if event in ('string', 'number', 'boolean', 'null'):
+            current[final_key] = value
+        elif event == 'start_map':
+            if final_key not in current:
+                current[final_key] = {}
+        elif event == 'start_array':
+            if final_key not in current:
+                current[final_key] = []
+
     
     async def _stream_ndjson(self) -> AsyncIterator[ProcessedItem]:
+
         """Stream parse NDJSON (newline-delimited JSON) format."""
+        
         try:
             item_index = 0
             

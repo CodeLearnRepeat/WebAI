@@ -137,9 +137,24 @@ async def rag_ingest_file(
         raise HTTPException(status_code=400, detail="Milvus/Zilliz configuration is required")
 
     try:
+        print(f"[DEBUG] Raw schema_json received: {repr(schema_json)}")
+        print(f"[DEBUG] schema_json type: {type(schema_json)}")
+        
         schema = json.loads(schema_json)
-    except Exception:
-        raise HTTPException(status_code=400, detail="schema_json must be valid JSON")
+        print(f"[DEBUG] Parsed schema type: {type(schema)}")
+        print(f"[DEBUG] Parsed schema content: {schema}")
+        
+        # Check if schema is unexpectedly a list
+        if isinstance(schema, list):
+            print(f"[DEBUG] ERROR: Schema is a list with {len(schema)} items")
+            raise HTTPException(status_code=400, detail=f"schema_json must be a JSON object, not a list. Received: {type(schema).__name__}")
+            
+    except json.JSONDecodeError as e:
+        print(f"[DEBUG] JSON decode error: {e}")
+        raise HTTPException(status_code=400, detail=f"schema_json must be valid JSON: {str(e)}")
+    except Exception as e:
+        print(f"[DEBUG] Unexpected error parsing schema: {e}")
+        raise HTTPException(status_code=400, detail=f"Error parsing schema_json: {str(e)}")
 
     fmt = (schema.get("format") or "json_array").lower()
     if fmt not in ("json_array", "ndjson"):
@@ -298,9 +313,27 @@ async def rag_ingest_file_streaming(
         raise HTTPException(status_code=400, detail="Milvus/Zilliz configuration is required")
 
     try:
+        print(f"[DEBUG] Raw schema_json received: {repr(schema_json)}")
+        print(f"[DEBUG] schema_json type: {type(schema_json)}")
+        print(f"[DEBUG] schema_json length: {len(schema_json) if schema_json else 0}")
+        
         schema = json.loads(schema_json)
-    except Exception:
-        raise HTTPException(status_code=400, detail="schema_json must be valid JSON")
+        print(f"[DEBUG] Parsed schema type: {type(schema)}")
+        print(f"[DEBUG] Parsed schema content: {schema}")
+        
+        # Check if schema is unexpectedly a list
+        if isinstance(schema, list):
+            print(f"[DEBUG] ERROR: Schema is a list with {len(schema)} items")
+            if schema:
+                print(f"[DEBUG] First list item: {schema[0]}")
+            raise HTTPException(status_code=400, detail=f"schema_json must be a JSON object, not a list. Received: {type(schema).__name__}")
+            
+    except json.JSONDecodeError as e:
+        print(f"[DEBUG] JSON decode error: {e}")
+        raise HTTPException(status_code=400, detail=f"schema_json must be valid JSON: {str(e)}")
+    except Exception as e:
+        print(f"[DEBUG] Unexpected error parsing schema: {e}")
+        raise HTTPException(status_code=400, detail=f"Error parsing schema_json: {str(e)}")
 
     # Validate and enhance schema configuration
     fmt = (schema.get("format") or "json_array").lower()
@@ -338,11 +371,25 @@ async def rag_ingest_file_streaming(
     # Save uploaded file temporarily
     temp_file_path = None
     try:
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+        # Create temporary file in BINARY mode since await file.read() returns bytes
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix=".json") as temp_file:
             temp_file_path = temp_file.name
             content = await file.read()
+    
+            # Add debugging
+            print(f"[DEBUG] File size received: {len(content)} bytes")
+            print(f"[DEBUG] First 100 chars of content: {content[:100] if content else 'EMPTY'}")
+            
+            # Decode bytes to see actual content for debugging
+            try:
+                decoded_preview = content[:200].decode('utf-8') if content else 'EMPTY'
+                print(f"[DEBUG] Decoded preview: {decoded_preview}")
+            except:
+                print("[DEBUG] Could not decode content preview")
+    
             temp_file.write(content)
+            temp_file.flush()  # Force flush to disk
+            # File is automatically closed when exiting the with block
 
         # Process file with streaming ingestion
         result = await ingest_json_file_streaming(
@@ -354,6 +401,46 @@ async def rag_ingest_file_streaming(
             provider_key=provider_key
         )
 
+        # Enhanced validation - check if data was actually inserted
+        if not result:
+            print(f"[ERROR] ingest_json_file_streaming returned empty result")
+            raise HTTPException(
+                status_code=500,
+                detail="Ingestion failed: No result returned from processing"
+            )
+        
+        # Check for explicit failure indicators
+        if result.get("status") == "error":
+            error_msg = result.get("error", "Unknown error during ingestion")
+            print(f"[ERROR] Ingestion failed: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Ingestion failed: {error_msg}")
+        
+        # Validate that some data was actually inserted
+        upserted_count = result.get("upserted", 0)
+        if upserted_count == 0:
+            # Check if this is expected (empty file) or a failure
+            total_processed = result.get("total_processed", 0)
+            if total_processed == 0:
+                print(f"[WARNING] No items found in file to process")
+                return {
+                    "status": "ok",
+                    "message": "No items found in file to process",
+                    **result
+                }
+            else:
+                # We processed items but inserted none - this is a failure
+                error_details = {
+                    "total_processed": total_processed,
+                    "upserted": upserted_count,
+                    "error": "Processed items but failed to insert any data into Milvus"
+                }
+                print(f"[ERROR] False positive detected: {error_details}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Ingestion failed: Processed {total_processed} items but inserted 0 records into Milvus. This indicates a connection or insertion failure."
+                )
+        
+        print(f"[SUCCESS] Streaming ingestion completed: {upserted_count} items inserted")
         return {"status": "ok", **result}
 
     finally:
@@ -385,10 +472,12 @@ async def rag_analyze_file(
     # Save file temporarily for analysis
     temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+        # Create temporary file in BINARY mode
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix=".json") as temp_file:
             temp_file_path = temp_file.name
             content = await file.read()
             temp_file.write(content)
+            temp_file.flush()  # Ensure content is written to disk
 
         # Get file statistics
         file_stats = await get_file_stats(temp_file_path)
@@ -519,9 +608,24 @@ async def rag_ingest_file_async(
         raise HTTPException(status_code=400, detail="Milvus/Zilliz configuration is required")
 
     try:
+        print(f"[DEBUG] Raw schema_json received: {repr(schema_json)}")
+        print(f"[DEBUG] schema_json type: {type(schema_json)}")
+        
         schema = json.loads(schema_json)
-    except Exception:
-        raise HTTPException(status_code=400, detail="schema_json must be valid JSON")
+        print(f"[DEBUG] Parsed schema type: {type(schema)}")
+        print(f"[DEBUG] Parsed schema content: {schema}")
+        
+        # Check if schema is unexpectedly a list
+        if isinstance(schema, list):
+            print(f"[DEBUG] ERROR: Schema is a list with {len(schema)} items")
+            raise HTTPException(status_code=400, detail=f"schema_json must be a JSON object, not a list. Received: {type(schema).__name__}")
+            
+    except json.JSONDecodeError as e:
+        print(f"[DEBUG] JSON decode error: {e}")
+        raise HTTPException(status_code=400, detail=f"schema_json must be valid JSON: {str(e)}")
+    except Exception as e:
+        print(f"[DEBUG] Unexpected error parsing schema: {e}")
+        raise HTTPException(status_code=400, detail=f"Error parsing schema_json: {str(e)}")
 
     # Validate schema configuration
     fmt = (schema.get("format") or "json_array").lower()
@@ -559,10 +663,12 @@ async def rag_ingest_file_async(
     # Save uploaded file temporarily
     temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as temp_file:
+        # Create temporary file in BINARY mode
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix=".json") as temp_file:
             temp_file_path = temp_file.name
             content = await file.read()
             temp_file.write(content)
+            temp_file.flush()  # Ensure content is written to disk
             file_size = len(content)
 
         # Start background task

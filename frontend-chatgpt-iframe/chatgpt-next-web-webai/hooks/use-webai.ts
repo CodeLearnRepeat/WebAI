@@ -263,15 +263,8 @@ export function useWebAI(): UseWebAIResult {
 
   // Helper to get API URL
   const getApiUrl = (): string => {
-    // Try multiple sources for API URL
-    if (typeof window !== 'undefined') {
-      return (
-        (window as any).NEXT_PUBLIC_WEBAI_API_URL ||
-        (globalThis as any).process?.env?.NEXT_PUBLIC_WEBAI_API_URL ||
-        'https://your-webai-backend.run.app'
-      );
-    }
-    return 'https://your-webai-backend.run.app';
+    // Access environment variable in Next.js client-side
+    return process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://your-webai-backend.run.app';
   };
 
   // Add custom message handler

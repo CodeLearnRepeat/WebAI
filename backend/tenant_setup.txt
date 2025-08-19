@@ -4,8 +4,8 @@
 # Deploy the Web3AI backend service to Google Cloud Run with comprehensive
 # environment variable configuration for multi-tenant RAG system
 
-gcloud run deploy web3ai-backend-v21-api \
-  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+gcloud run deploy web3ai-backend-v25-api \
+  --image gcr.io/rhtai-464618/webai-backend-v25:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -24,8 +24,8 @@ OPENROUTER_X_TITLE=Web3AI Assistant"
 # =============================================================================
 # For even better readability, you can use separate --set-env-vars flags:
 
-gcloud run deploy web3ai-backend-v21-api \
-  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+gcloud run deploy web3ai-backend-v25-api \
+  --image gcr.io/rhtai-464618/webai-backend-v25:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -33,6 +33,7 @@ gcloud run deploy web3ai-backend-v21-api \
   --memory=4Gi \
   --timeout=3600 \
   --set-env-vars="REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
+  --set-env-vars="CONVERSATION_REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
   --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-df-9c63-a4f4bb037f82" \
   --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
   --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
@@ -212,7 +213,7 @@ curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag
 
 
 # Step 1: Register tenant 
-curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/register-tenant \
+curl -X POST https://web3ai-backend-v25-api-180395924844.us-central1.run.app/register-tenant \
   -H "Content-Type: application/json" \
   -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   -d '{
@@ -246,7 +247,7 @@ curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/reg
   }'
 
 # Step 2: Ingest data (corrected schema)
-curl -X POST  https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file \
+curl -X POST  https://web3ai-backend-v25-api-180395924844.us-central1.run.app/rag/ingest-file \
   -H "X-Tenant-Id: YOUR_TENANT_ID" \
   -F "file=@/THE/PATH/TO/YOUR/FILE/YOUR_FILE.json" \
   -F 'schema_json={
@@ -290,35 +291,36 @@ curl -X POST  https://web3ai-backend-v21-api-180395924844.us-central1.run.app/ra
 Step 1: System Deployment
 Deploy Backend to Google Cloud Run
 # Deploy the Web3AI backend service with streaming capabilities
-gcloud run deploy web3ai-backend-v21-api \
-  --image gcr.io/rhtai-464618/webai-backend-v13:latest \
+gcloud run deploy web3ai-backend-v33-api \
+  --image gcr.io/rhtai-464618/webai-backend-v33:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
   --cpu=2 \
   --memory=4Gi \
   --timeout=3600 \
-  --set-env-vars="REDIS_URL=redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
+  --set-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
+  --set-env-vars="CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
   --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
   --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
   --set-env-vars="OPENROUTER_X_TITLE=Web3AI Assistant"
 
 # Expected output: Service URL
-# https://web3ai-backend-v21-api-180395924844.us-central1.run.app
+# https://web3ai-backend-v26-api-180395924844.us-central1.run.app
 
 bash
-
+New ADMIN KEY: 0f81c721-dffa-4d78-9c63-a4f4bb037f82
 
 Step 2: Tenant Registration with Enhanced RAG Configuration
 Register Tenant with Streaming-Optimized Configuration
-curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/register-tenant \
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/register-tenant \
   -H "Content-Type: application/json" \
   -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   -d '{
     "openrouter_api_key": "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",
-    "system_prompt": "You are a helpful AI assistant meant for answering housing related questions. Use the provided context to answer questions accurately.",
-    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app"],
+    "system_prompt": "You are a helpful AI assistant. Use the provided context to answer questions accurately.",
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app", "https://chatgpt-next-web-webai.vercel.app"],
     "model": "google/gemini-2.5-flash",
     "rate_limit_per_minute": 30,
     "rate_limit_per_hour": 500,
@@ -336,7 +338,7 @@ curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/reg
         "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
         "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
         "db_name": "RHTAI",
-        "collection": "website_info",
+        "collection": "website_info_2",
         "vector_field": "embedding",
         "text_field": "text",
         "metadata_field": "metadata",
@@ -361,8 +363,8 @@ bash
 
 Step 3: Verify System Capabilities
 Check Processing Capabilities
-curl -X GET https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/processing-capabilities \
-  -H "X-Tenant-Id: $TENANT_ID"
+curl -X GET https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/processing-capabilities \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw"
 
 # Expected Response:
 # {
@@ -393,9 +395,9 @@ bash
 
 Step 4: Analyze File Before Processing (Optional but Recommended)
 Get File Statistics and Processing Recommendations
-curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/analyze-file \
-  -H "X-Tenant-Id: $TENANT_ID" \
-  -F "file=@/path/to/your/large_dataset.json"
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/analyze-file \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/BATCH/scrape/scraped_content_successful2.json"
 
 # Expected Response:
 # {
@@ -469,15 +471,57 @@ bash
 
 
 Execute Streaming Upload with Enhanced Features
-curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: $TENANT_ID" \
-  -F "file=@/path/to/your/large_dataset.json" \
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/BATCH/scrape/scraped_content_successful2.json" \
   -F "schema_json=$(cat schema_config.json)" \
   -F "embedding_provider=voyageai" \
   -F "embedding_model=voyage-law-2" \
   -F "enable_chunking_enhancement=true" \
   -F "max_tokens_per_chunk=1000"
 
+
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json" \
+  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json"
+  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@anotherone.json" \
+  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+
+curl -X POST https://web3ai-backend-v26-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json" \
+  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+
+gcloud run services update web3ai-backend-v21-api \
+  --region us-central1 \
+  --update-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711,CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"
 # Expected Response:
 # {
 #   "status": "ok",
@@ -517,3 +561,16 @@ curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag
   -F "embedding_model=voyage-law-2" \
   -F "enable_chunking_enhancement=true" \
   -F "max_tokens_per_chunk=1000"
+
+
+
+  redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711
+  redis://:S0U8FJJ9mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711
+redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711
+
+
+
+
+  gcloud run services update web3ai-backend-v25-api \
+  --region us-central1 \
+  --update-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711,CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"

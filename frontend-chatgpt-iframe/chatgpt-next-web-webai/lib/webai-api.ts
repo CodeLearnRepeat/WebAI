@@ -313,12 +313,8 @@ export function createWebAIFromParams(): WebAIApi | null {
     return null;
   }
 
-  // Access environment variable in browser-safe way
-  const apiUrl = typeof window !== 'undefined'
-    ? (globalThis as any).process?.env?.NEXT_PUBLIC_WEBAI_API_URL ||
-      (window as any).NEXT_PUBLIC_WEBAI_API_URL ||
-      'https://your-webai-backend.run.app'
-    : 'https://your-webai-backend.run.app';
+  // Access environment variable in Next.js client-side
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://your-webai-backend.run.app';
   if (!apiUrl) {
     console.error('NEXT_PUBLIC_WEBAI_API_URL environment variable is required');
     return null;
