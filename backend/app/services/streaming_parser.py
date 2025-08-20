@@ -93,7 +93,7 @@ class StreamingJSONProcessor:
         try:
             # Use ijson to parse array items one by one
             parser = ijson.parse(self.file_stream)
-            items = {}  # Store items by their array index
+            current_item = None
             item_index = 0
             
             for prefix, event, value in parser:
@@ -105,37 +105,22 @@ class StreamingJSONProcessor:
                 elif event == 'end_array' and prefix == '':
                     # Root array ended
                     break
-                elif event == 'start_map' and prefix.isdigit():
-                    # New array item starting (prefix is "0", "1", "2", etc.)
-                    array_index = int(prefix)
-                    items[array_index] = {}
-                elif event == 'end_map' and prefix.isdigit():
+                elif event == 'start_map' and prefix == 'item':
+                    # New array item starting
+                    current_item = {}
+                elif event == 'end_map' and prefix == 'item':
                     # Array item complete
-                    array_index = int(prefix)
-                    if array_index in items:
-                        async for processed in self._process_item(items[array_index], array_index):
+                    if current_item is not None:
+                        async for processed in self._process_item(current_item, item_index):
                             yield processed
-                        del items[array_index]  # Free memory
+                        item_index += 1
                         self.stats.items_processed += 1
-                elif prefix and '.' in prefix:
-                    # Nested property within an array item (e.g., "0.raw_text", "1.source_url")
-                    parts = prefix.split('.', 1)
-                    if parts[0].isdigit():
-                        array_index = int(parts[0])
-                        if array_index not in items:
-                            items[array_index] = {}
-                        
-                        # Set nested value
-                        try:
-                            self._set_nested_value_simple(items[array_index], parts[1], event, value)
-                        except Exception as e:
-                            logger.warning(f"Error setting nested value at {prefix}: {e}")
-                            self.stats.errors_encountered += 1
-                elif prefix.isdigit() and event in ('string', 'number', 'boolean', 'null'):
-                    # Direct value in array item (shouldn't happen with objects, but handle it)
-                    array_index = int(prefix)
-                    if array_index not in items:
-                        items[array_index] = value
+                        current_item = None
+                elif prefix and prefix.startswith('item.') and current_item is not None:
+                    # Property within current array item
+                    field_name = prefix[5:]  # Remove 'item.' prefix
+                    if event in ('string', 'number', 'boolean', 'null'):
+                        current_item[field_name] = value
                         
         except Exception as e:
             logger.error(f"Error parsing JSON array: {e}")

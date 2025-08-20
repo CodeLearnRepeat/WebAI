@@ -22,10 +22,20 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/embedded/chat": [
+    "/setup/step2": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/embedded/chat.js"
+      "static/chunks/pages/setup/step2.js"
+    ],
+    "/setup/step3": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/setup/step3.js"
+    ],
+    "/setup/step4": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/setup/step4.js"
     ]
   },
   "ampFirstPages": []

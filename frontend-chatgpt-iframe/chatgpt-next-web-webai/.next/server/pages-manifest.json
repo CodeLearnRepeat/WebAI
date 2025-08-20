@@ -2,5 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/embedded/chat": "pages/embedded/chat.js"
+  "/setup/step1": "pages/setup/step1.js",
+  "/setup/step2": "pages/setup/step2.js",
+  "/setup/step3": "pages/setup/step3.js",
+  "/setup/step4": "pages/setup/step4.js"
 }

@@ -194,16 +194,16 @@ tenant_config = {
     
     <!-- Configure widget -->
     <script>
-        window.WEBAI_CHATUI_URL = "https://your-chatgpt-app.vercel.app";
-        window.WEBAI_TENANT_ID = "your-tenant-id";
+        window.WEBAI_CHATUI_URL = "https://chatgpt-next-web-webai.vercel.app";
+        window.WEBAI_TENANT_ID = "tenant_Tgyrz826g6McXjlQX173RA";
         window.WEBAI_USE_RAG = true;
         window.WEBAI_RAG_TOP_K = 4;
-        window.WEBAI_TITLE = "Test Assistant";
+        window.WEBAI_TITLE = "WebAI Assistant";
         window.WEBAI_DEBUG = true;
     </script>
     
     <!-- Load widget -->
-    <script src="https://storage.googleapis.com/your-webai-widget-bucket/webai-widget-iframe.js" defer></script>
+    <script src="https://storage.googleapis.com/webai_chat_widget/webai_widget/webai-widget-iframe.js" defer></script>
 </body>
 </html>
 ```

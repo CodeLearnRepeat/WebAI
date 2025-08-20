@@ -19,7 +19,7 @@
 
   // Configuration (override via window before loading this script)
   const CONFIG = {
-    CHATUI_URL: window.WEBAI_CHATUI_URL || "https://webai-chatgpt.vercel.app",
+    CHATUI_URL: window.WEBAI_CHATUI_URL || "https://chatgpt-next-web-webai.vercel.app",
     TENANT_ID: window.WEBAI_TENANT_ID || "default-tenant",
     USE_RAG: typeof window.WEBAI_USE_RAG === "boolean" ? window.WEBAI_USE_RAG : true,
     RAG_TOP_K: typeof window.WEBAI_RAG_TOP_K === "number" ? window.WEBAI_RAG_TOP_K : 4,
@@ -203,7 +203,7 @@
   iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
 
   // Build iframe URL with parameters
-  const iframeUrl = new URL(CONFIG.CHATUI_URL);
+  const iframeUrl = new URL('/embedded/chat', CONFIG.CHATUI_URL);
   iframeUrl.searchParams.set('embedded', 'true');
   iframeUrl.searchParams.set('tenant', CONFIG.TENANT_ID);
   iframeUrl.searchParams.set('session', SESSION_ID);
@@ -303,9 +303,10 @@
   // Send message to iframe
   function sendToIframe(type, data = {}) {
     const message = { type, data };
+    const iframeOrigin = new URL(CONFIG.CHATUI_URL).origin;
     
     if (isIframeReady) {
-      iframe.contentWindow.postMessage(message, CONFIG.CHATUI_URL);
+      iframe.contentWindow.postMessage(message, iframeOrigin);
       debugLog('Sent message to iframe:', type, data);
     } else {
       pendingMessages.push(message);

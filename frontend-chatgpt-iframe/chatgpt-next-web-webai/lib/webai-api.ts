@@ -31,15 +31,15 @@ export interface StreamResponse {
 }
 
 export class WebAIApi {
-  private config: WebAIConfig;
-  private abortController: AbortController | null = null;
+  protected config: WebAIConfig;
+  protected abortController: AbortController | null = null;
 
   constructor(config: WebAIConfig) {
     this.config = config;
     this.debugLog('WebAI API initialized with config:', config);
   }
 
-  private debugLog(...args: any[]) {
+  protected debugLog(...args: any[]) {
     if (this.config.debug) {
       console.log('[WebAI API]', ...args);
     }
@@ -314,11 +314,7 @@ export function createWebAIFromParams(): WebAIApi | null {
   }
 
   // Access environment variable in Next.js client-side
-  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://your-webai-backend.run.app';
-  if (!apiUrl) {
-    console.error('NEXT_PUBLIC_WEBAI_API_URL environment variable is required');
-    return null;
-  }
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v34-api-180395924844.us-central1.run.app';
 
   const config: WebAIConfig = {
     apiUrl,
@@ -330,4 +326,375 @@ export function createWebAIFromParams(): WebAIApi | null {
   };
 
   return new WebAIApi(config);
+}
+
+/**
+ * Tenant Setup Types
+ */
+export interface TenantRegistrationData {
+  tenant_id: string;
+  basic_setup: {
+    openrouter_api_key: string;
+    model_name?: string;
+    max_tokens?: number;
+    temperature?: number;
+    top_p?: number;
+  };
+  rag_config?: {
+    collection_name?: string;
+    milvus_host?: string;
+    milvus_port?: number;
+    embedding_model?: string;
+    chunk_size?: number;
+    chunk_overlap?: number;
+    enable_hybrid_search?: boolean;
+  };
+  advanced_settings?: {
+    redis_host?: string;
+    redis_port?: number;
+    rate_limit_requests?: number;
+    rate_limit_window?: number;
+  };
+}
+
+export interface SystemCapabilities {
+  features: {
+    rag_processing: boolean;
+    streaming_ingestion: boolean;
+    batch_processing: boolean;
+    hybrid_search: boolean;
+  };
+  limits: {
+    max_file_size_mb: number;
+    max_concurrent_jobs: number;
+    supported_formats: string[];
+    max_chunk_size: number;
+  };
+  resources: {
+    embedding_models: string[];
+    vector_stores: string[];
+    processing_modes: string[];
+  };
+}
+
+export interface FileAnalysisRequest {
+  tenant_id: string;
+  filename: string;
+  file_size: number;
+  content_preview?: string;
+}
+
+export interface FileAnalysisResult {
+  filename: string;
+  file_size: number;
+  estimated_chunks: number;
+  processing_time_estimate: string;
+  recommended_settings: {
+    chunk_size: number;
+    chunk_overlap: number;
+    processing_mode: 'streaming' | 'async';
+  };
+  file_type: string;
+  content_analysis: {
+    text_content: boolean;
+    has_tables: boolean;
+    has_images: boolean;
+    language: string;
+    complexity_score: number;
+  };
+}
+
+export interface ProcessingSchema {
+  chunk_size: number;
+  chunk_overlap: number;
+  processing_mode: 'streaming' | 'async';
+  metadata_extraction: boolean;
+  enable_ocr: boolean;
+  custom_fields?: Record<string, any>;
+}
+
+export interface ProcessingProgress {
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress_percentage: number;
+  current_stage: string;
+  chunks_processed: number;
+  total_chunks: number;
+  estimated_completion: string;
+  error_message?: string;
+}
+
+/**
+ * Extended WebAI API class with tenant setup methods
+ */
+export class WebAITenantSetupApi extends WebAIApi {
+  /**
+   * Register a new tenant
+   */
+  async registerTenant(tenantData: TenantRegistrationData): Promise<{ tenant_id: string; status: string }> {
+    try {
+      const response = await fetch(`${this.config.apiUrl}/tenants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tenantData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.detail || errorMessage;
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      this.debugLog('Tenant registered successfully:', result);
+      return result;
+    } catch (error) {
+      this.debugLog('Failed to register tenant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate OpenRouter API key
+   */
+  async validateOpenRouterKey(apiKey: string): Promise<{ valid: boolean; models?: string[] }> {
+    try {
+      const response = await fetch(`${this.config.apiUrl}/api-keys/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': this.config.tenantId,
+        },
+        body: JSON.stringify({
+          api_key: apiKey,
+          provider: 'openrouter'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Validation failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      this.debugLog('API key validation result:', result);
+      return result;
+    } catch (error) {
+      this.debugLog('Failed to validate API key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get system processing capabilities
+   */
+  async getSystemCapabilities(): Promise<SystemCapabilities> {
+    try {
+      const response = await fetch(`${this.config.apiUrl}/rag/processing-capabilities`, {
+        method: 'GET',
+        headers: {
+          'X-Tenant-ID': this.config.tenantId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get capabilities: ${response.statusText}`);
+      }
+
+      const capabilities = await response.json();
+      this.debugLog('System capabilities:', capabilities);
+      return capabilities;
+    } catch (error) {
+      this.debugLog('Failed to get system capabilities:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze file for processing recommendations
+   */
+  async analyzeFile(file: File): Promise<FileAnalysisResult> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tenant_id', this.config.tenantId);
+
+      const response = await fetch(`${this.config.apiUrl}/rag/analyze-file`, {
+        method: 'POST',
+        headers: {
+          'X-Tenant-ID': this.config.tenantId,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`File analysis failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      this.debugLog('File analysis result:', result);
+      return result;
+    } catch (error) {
+      this.debugLog('Failed to analyze file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process file with streaming progress
+   */
+  async *processFileStreaming(
+    file: File,
+    schema: ProcessingSchema
+  ): AsyncGenerator<ProcessingProgress, void, unknown> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tenant_id', this.config.tenantId);
+      formData.append('schema_config', JSON.stringify(schema));
+
+      const response = await fetch(`${this.config.apiUrl}/rag/ingest-file-streaming`, {
+        method: 'POST',
+        headers: {
+          'X-Tenant-ID': this.config.tenantId,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`File processing failed: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body available');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trimEnd();
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (!line.startsWith('data: ')) continue;
+          
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') {
+            this.debugLog('File processing completed');
+            return;
+          }
+
+          try {
+            const progress = JSON.parse(data);
+            this.debugLog('Processing progress:', progress);
+            yield progress;
+          } catch (parseError) {
+            // Skip invalid JSON
+            if (this.config.debug) {
+              console.warn('[WebAI API] Parse error:', parseError, 'for data:', data);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      this.debugLog('Failed to process file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process file asynchronously (background processing)
+   */
+  async processFileAsync(
+    file: File,
+    schema: ProcessingSchema
+  ): Promise<{ job_id: string; status: string }> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tenant_id', this.config.tenantId);
+      formData.append('schema_config', JSON.stringify(schema));
+
+      const response = await fetch(`${this.config.apiUrl}/rag/ingest-file-async`, {
+        method: 'POST',
+        headers: {
+          'X-Tenant-ID': this.config.tenantId,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Async processing failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      this.debugLog('Async processing started:', result);
+      return result;
+    } catch (error) {
+      this.debugLog('Failed to start async processing:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get processing job status
+   */
+  async getProcessingStatus(jobId: string): Promise<ProcessingProgress> {
+    try {
+      const response = await fetch(`${this.config.apiUrl}/rag/job-status/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'X-Tenant-ID': this.config.tenantId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get job status: ${response.statusText}`);
+      }
+
+      const status = await response.json();
+      this.debugLog('Job status:', status);
+      return status;
+    } catch (error) {
+      this.debugLog('Failed to get job status:', error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Helper function to create tenant setup API instance from URL parameters
+ */
+export function createTenantSetupApi(): WebAITenantSetupApi | null {
+  const params = new URLSearchParams(window.location.search);
+  
+  // Access environment variable in Next.js client-side
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v34-api-180395924844.us-central1.run.app';
+
+  const config: WebAIConfig = {
+    apiUrl,
+    tenantId: params.get('tenant') || 'setup',
+    sessionId: params.get('session') || 'setup',
+    useRAG: false,
+    ragTopK: 4,
+    debug: params.get('debug') === 'true'
+  };
+
+  return new WebAITenantSetupApi(config);
 }

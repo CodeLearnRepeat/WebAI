@@ -229,7 +229,7 @@
     <!-- Widget Configuration Script -->
     <script>
         // Initial configuration
-        window.WEBAI_CHATUI_URL = "https://your-chatgpt-app.vercel.app";
+        window.WEBAI_CHATUI_URL = "https://chatgpt-next-web-webai.vercel.app";
         window.WEBAI_TENANT_ID = "demo-tenant";
         window.WEBAI_USE_RAG = true;
         window.WEBAI_RAG_TOP_K = 4;
@@ -290,7 +290,7 @@
         function loadWidget() {
             // Load widget script dynamically
             const script = document.createElement('script');
-            script.src = 'https://storage.googleapis.com/your-webai-widget-bucket/webai-widget-iframe.js';
+            script.src = 'https://chatgpt-next-web-webai.vercel.app/webai-widget-iframe.js';
             script.defer = true;
             script.onload = () => {
                 updateStatus('ready', 'Widget Loaded Successfully');
@@ -314,7 +314,7 @@
 <\/script>
 
 <!-- Load widget script -->
-<script src="https://storage.googleapis.com/your-webai-widget-bucket/webai-widget-iframe.js" defer><\/script>`;
+<script src="https://chatgpt-next-web-webai.vercel.app/webai-widget-iframe.js" defer><\/script>`;
             
             document.getElementById('implementation-code').textContent = code;
         }
@@ -413,7 +413,7 @@
             updateImplementationCode();
             
             // Load form values from current config
-            document.getElementById('chatui-url').value = window.WEBAI_CHATUI_URL;
+            document.getElementById('chatui-url').value = "https://chatgpt-next-web-webai.vercel.app";
             document.getElementById('tenant-id').value = window.WEBAI_TENANT_ID;
             document.getElementById('widget-title').value = window.WEBAI_TITLE;
             document.getElementById('use-rag').value = window.WEBAI_USE_RAG.toString();
