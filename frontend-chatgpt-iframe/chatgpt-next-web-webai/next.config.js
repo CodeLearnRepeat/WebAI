@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: false, // Use pages directory for compatibility
-  },
+  // Removed deprecated experimental.appDir (app router available by default in Next.js 13.4+)
   
   // Enable standalone output for better deployment
   output: 'standalone',
@@ -28,9 +26,9 @@ const nextConfig = {
             value: `
               frame-ancestors 'self' https://storage.googleapis.com https://*.googleapis.com *;
               default-src 'self';
-              script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net;
+              script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://js.stripe.com;
               style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com;
-              font-src 'self' https://fonts.gstatic.com;
+              font-src 'self' https://fonts.gstatic.com data:;
               img-src 'self' data: https:;
               connect-src 'self' https: wss:;
             `.replace(/\s+/g, ' ').trim()
@@ -97,9 +95,6 @@ const nextConfig = {
 
   // Trailing slash configuration
   trailingSlash: false,
-
-  // Disable telemetry
-  telemetry: false,
 
   // React strict mode
   reactStrictMode: true,

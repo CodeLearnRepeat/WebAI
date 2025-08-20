@@ -14,4 +14,9 @@ class Settings(BaseSettings):
     HTTP_REFERER: str = os.getenv("OPENROUTER_HTTP_REFERER", "https://webai.chat")
     X_TITLE: str = os.getenv("OPENROUTER_X_TITLE", "WebAI Chat Widget")
 
+    # Stripe Configuration
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
 settings = Settings()

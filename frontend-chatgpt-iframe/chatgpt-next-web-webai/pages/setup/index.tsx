@@ -10,8 +10,8 @@ export default function SetupIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to step 1 of the setup wizard
-    router.replace('/setup/step1' + window.location.search);
+    // Redirect to the root (which is now the setup welcome page)
+    router.replace('/' + window.location.search);
   }, [router]);
 
   return (
