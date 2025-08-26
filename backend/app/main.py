@@ -7,7 +7,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.debug import router as debug_router
 from app.api.routes.rag import router as rag_router
 from app.api.routes.api_keys import router as api_keys_router
-from app.api.routes.subscription import router as subscription_router
+
 app = FastAPI(title="WebAI API")
 
 # CORS: allow all; we manually validate origin per-tenant inside chat route
@@ -26,7 +26,6 @@ app.include_router(health_router)
 app.include_router(debug_router)
 app.include_router(rag_router)
 app.include_router(api_keys_router, prefix="/api-keys", tags=["API Keys"])
-app.include_router(subscription_router, tags=["Subscriptions"])
 
 
 # Run: uvicorn app.main:app --host 0.0.0.0 --port 8080

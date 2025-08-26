@@ -1,5 +1,9 @@
 import os
-from pydantic import BaseSettings
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # Fallback for older pydantic versions
+    from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
