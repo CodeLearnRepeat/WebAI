@@ -10,12 +10,12 @@ from app.api.routes.api_keys import router as api_keys_router
 
 app = FastAPI(title="WebAI API")
 
-# CORS: allow all; we manually validate origin per-tenant inside chat route
+# CORS: Configured for security - credentials cannot be True with wildcard origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,  # Must be False when origins is ["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

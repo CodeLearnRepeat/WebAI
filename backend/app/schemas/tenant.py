@@ -1,4 +1,5 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
+from pydantic_settings import BaseSettings
 from typing import Optional, List, Literal, Dict
 
 class RagMilvusConfig(BaseModel):
@@ -30,7 +31,7 @@ class TenantRegistration(BaseModel):
     rate_limit_per_hour: Optional[int] = None
     rag: Optional[RagConfig] = None
 
-    @validator('allowed_domains')
+    @field_validator('allowed_domains')
     def validate_domains(cls, v):
         if not v:
             raise ValueError("At least one allowed domain is required")

@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 httpx
 pydantic<2
+pydantic-settings
 redis
 pymilvus>=2.4.4
 sentence-transformers>=3.0.0

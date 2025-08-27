@@ -16,7 +16,7 @@ async def register_tenant(registration: TenantRegistration, x_admin_key: str = H
     )
     # Add RAG config if provided (validate minimal fields when enabled)
     if registration.rag and registration.rag.enabled:
-        rag = registration.rag.dict()
+        rag = registration.rag.model_dump()
         if rag["provider"] == "milvus":
             milvus = rag.get("milvus") or {}
             required = ["uri", "collection"]
@@ -55,7 +55,7 @@ async def update_tenant(tenant_id: str, update: TenantUpdate, x_admin_key: str =
     if update.active is not None:
         config["active"] = update.active
     if update.rag is not None:
-        rag = update.rag.dict()
+        rag = update.rag.model_dump()
         if rag.get("enabled"):
             if rag.get("provider") == "milvus":
                 milvus = rag.get("milvus") or {}

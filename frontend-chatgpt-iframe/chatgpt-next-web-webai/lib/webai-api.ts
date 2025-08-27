@@ -314,7 +314,7 @@ export function createWebAIFromParams(): WebAIApi | null {
   }
 
   // Access environment variable in Next.js client-side
-  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v34-api-180395924844.us-central1.run.app';
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v65-api-180395924844.us-central1.run.app';
 
   const config: WebAIConfig = {
     apiUrl,
@@ -438,8 +438,11 @@ export class WebAITenantSetupApi extends WebAIApi {
    */
   async registerTenant(tenantData: TenantRegistrationData): Promise<{ tenant_id: string; message: string }> {
     try {
-      // Get admin key from environment or use default
-      const adminKey = process.env.NEXT_PUBLIC_WEBAI_ADMIN_KEY || '0f81c721-dffa-4d78-9c63-a4f4bb037f82';
+      // Get admin key from environment - must be set
+      const adminKey = process.env.NEXT_PUBLIC_WEBAI_ADMIN_KEY;
+      if (!adminKey) {
+        throw new Error('NEXT_PUBLIC_WEBAI_ADMIN_KEY environment variable is required');
+      }
       
       const response = await fetch(`${this.config.apiUrl}/register-tenant`, {
         method: 'POST',
@@ -695,7 +698,7 @@ export function createTenantSetupApi(): WebAITenantSetupApi | null {
   const params = new URLSearchParams(window.location.search);
   
   // Access environment variable in Next.js client-side
-  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v34-api-180395924844.us-central1.run.app';
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v65-api-180395924844.us-central1.run.app';
 
   const config: WebAIConfig = {
     apiUrl,

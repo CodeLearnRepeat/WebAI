@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
@@ -7,7 +8,7 @@ except ImportError:
 
 class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-    CONVERSATION_REDIS_URL: str | None = os.getenv("CONVERSATION_REDIS_URL")
+    CONVERSATION_REDIS_URL: Optional[str] = os.getenv("CONVERSATION_REDIS_URL")
     OPENROUTER_API_URL: str = "https://openrouter.ai/api/v1/chat/completions"
 
     WEBAI_ADMIN_KEY: str = os.getenv("WEBAI_ADMIN_KEY", "your-secure-admin-key")
