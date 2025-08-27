@@ -8,7 +8,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import WizardLayout, { WizardStep } from '../../components/setup/WizardLayout';
 import { WebAITenantSetupApi, SystemCapabilities, createTenantSetupApi } from '../../lib/webai-api';
-import { PaywallProvider, withSubscriptionProtection } from '../../components/paywall/PaywallProvider';
 
 const wizardSteps: WizardStep[] = [
   { id: 1, title: 'Welcome', description: 'Introduction to setup', path: '/setup/step1', completed: true },
@@ -518,92 +517,4 @@ function SystemCapabilitiesPageContent() {
   );
 }
 
-const ProtectedSystemCapabilitiesPage = withSubscriptionProtection(SystemCapabilitiesPageContent, {
-  showPaywall: true,
-  blockedComponent: (
-    <div className="subscription-required-page">
-      <Head>
-        <title>Subscription Required - WebAI Setup</title>
-      </Head>
-      
-      <WizardLayout
-        currentStep={3}
-        steps={wizardSteps}
-        onNext={() => {}}
-        onPrevious={() => window.history.back()}
-        nextDisabled={true}
-        nextLabel="Subscribe Required"
-      >
-        <div className="subscription-block">
-          <div className="block-icon">🔒</div>
-          <h2>Premium Feature Access</h2>
-          <p>
-            System capabilities overview is available to subscribers only.
-            Get insights into processing limits, supported formats, and available features.
-          </p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="return-button"
-          >
-            Return to Home & Subscribe
-          </button>
-        </div>
-
-        <style jsx>{`
-          .subscription-block {
-            max-width: 500px;
-            margin: 0 auto;
-            text-align: center;
-            padding: 3rem 2rem;
-          }
-
-          .block-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
-            opacity: 0.7;
-          }
-
-          .subscription-block h2 {
-            margin: 0 0 1rem 0;
-            color: #ffffff;
-            font-size: 2rem;
-            font-weight: 600;
-          }
-
-          .subscription-block p {
-            color: rgba(255, 255, 255, 0.7);
-            margin: 0 0 2rem 0;
-            line-height: 1.6;
-            font-size: 1.1rem;
-          }
-
-          .return-button {
-            background: #007bff;
-            color: #ffffff;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-          }
-
-          .return-button:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-          }
-        `}</style>
-      </WizardLayout>
-    </div>
-  )
-});
-
-export default function SystemCapabilitiesPage() {
-  return (
-    <PaywallProvider autoCheckSubscription={true} debugMode={process.env.NODE_ENV === 'development'}>
-      <ProtectedSystemCapabilitiesPage />
-    </PaywallProvider>
-  );
-}
+export default SystemCapabilitiesPageContent;
