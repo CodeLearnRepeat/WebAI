@@ -14,28 +14,37 @@ type TabType = 'basic' | 'rag' | 'advanced';
 
 interface FormData {
   tenant_id: string;
-  basic_setup: {
-    openrouter_api_key: string;
-    model_name: string;
-    max_tokens: number;
-    temperature: number;
-    top_p: number;
-  };
-  rag_config: {
-    collection_name: string;
-    milvus_host: string;
-    milvus_port: number;
-    embedding_model: string;
-    chunk_size: number;
-    chunk_overlap: number;
-    enable_hybrid_search: boolean;
-  };
-  advanced_settings: {
-    redis_host: string;
-    redis_port: number;
-    rate_limit_requests: number;
-    rate_limit_window: number;
-  };
+  openrouter_api_key: string;
+  system_prompt: string;
+  allowed_domains: string[];
+  model: string;
+  rate_limit_per_minute: number | null;
+  rate_limit_per_hour: number | null;
+  rag: RagConfig | null;
+  // Legacy UI fields for convenience
+  domain_input: string; // For adding domains one by one
+}
+
+interface RagConfig {
+  enabled: boolean;
+  self_rag_enabled: boolean;
+  provider: 'milvus';
+  milvus: RagMilvusConfig | null;
+  embedding_provider: 'sentence_transformers' | 'openai' | 'voyageai';
+  embedding_model: string;
+  provider_keys: Record<string, string>;
+  top_k: number;
+}
+
+interface RagMilvusConfig {
+  uri: string;
+  token: string | null;
+  db_name: string | null;
+  collection: string;
+  vector_field: string;
+  text_field: string;
+  metadata_field: string | null;
+  metric_type: 'IP' | 'COSINE' | 'L2';
 }
 
 interface ValidationErrors {
@@ -61,28 +70,32 @@ function TenantRegistrationPageContent() {
 
   const [formData, setFormData] = useState<FormData>({
     tenant_id: '',
-    basic_setup: {
-      openrouter_api_key: '',
-      model_name: 'openai/gpt-4o-mini',
-      max_tokens: 2048,
-      temperature: 0.7,
-      top_p: 0.9,
-    },
-    rag_config: {
-      collection_name: '',
-      milvus_host: 'localhost',
-      milvus_port: 19530,
-      embedding_model: 'voyage-3',
-      chunk_size: 1000,
-      chunk_overlap: 200,
-      enable_hybrid_search: true,
-    },
-    advanced_settings: {
-      redis_host: 'localhost',
-      redis_port: 6379,
-      rate_limit_requests: 100,
-      rate_limit_window: 60,
-    },
+    openrouter_api_key: '',
+    system_prompt: 'You are a helpful AI assistant.',
+    allowed_domains: [],
+    model: 'anthropic/claude-3.5-sonnet',
+    rate_limit_per_minute: 100,
+    rate_limit_per_hour: 1000,
+    domain_input: '',
+    rag: {
+      enabled: false,
+      self_rag_enabled: false,
+      provider: 'milvus',
+      milvus: {
+        uri: 'http://localhost:19530',
+        token: null,
+        db_name: null,
+        collection: '',
+        vector_field: 'embedding',
+        text_field: 'text',
+        metadata_field: 'metadata',
+        metric_type: 'IP'
+      },
+      embedding_provider: 'sentence_transformers',
+      embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
+      provider_keys: {},
+      top_k: 3
+    }
   });
 
   useEffect(() => {
@@ -96,10 +109,13 @@ function TenantRegistrationPageContent() {
     setFormData(prev => ({
       ...prev,
       tenant_id: defaultTenantId,
-      rag_config: {
-        ...prev.rag_config,
-        collection_name: `${defaultTenantId}_documents`,
-      },
+      rag: prev.rag ? {
+        ...prev.rag,
+        milvus: prev.rag.milvus ? {
+          ...prev.rag.milvus,
+          collection: `${defaultTenantId}_documents`,
+        } : null
+      } : null,
     }));
   }, []);
 
@@ -118,22 +134,19 @@ function TenantRegistrationPageContent() {
         // Update available models in form
         setFormData(prev => ({
           ...prev,
-          basic_setup: {
-            ...prev.basic_setup,
-            model_name: result.models![0], // Use first available model
-          },
+          model: result.models![0], // Use first available model
         }));
         
         // Clear validation error
         setValidationErrors(prev => {
           const newErrors = { ...prev };
-          delete newErrors['basic_setup.openrouter_api_key'];
+          delete newErrors['openrouter_api_key'];
           return newErrors;
         });
       } else {
         setValidationErrors(prev => ({
           ...prev,
-          'basic_setup.openrouter_api_key': 'Invalid API key',
+          'openrouter_api_key': 'Invalid API key',
         }));
       }
     } catch (error) {
@@ -141,7 +154,7 @@ function TenantRegistrationPageContent() {
       setApiKeyValidation({ valid: false });
       setValidationErrors(prev => ({
         ...prev,
-        'basic_setup.openrouter_api_key': 'API key validation failed',
+        'openrouter_api_key': 'API key validation failed',
       }));
     } finally {
       setIsValidatingKey(false);
@@ -164,29 +177,65 @@ function TenantRegistrationPageContent() {
     }
   };
 
-  const handleNestedInputChange = (section: 'basic_setup' | 'rag_config' | 'advanced_settings', field: string, value: any) => {
+  const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData(prev => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
+      [field]: value,
     }));
 
     // Clear validation error for this field
-    const fieldKey = `${section}.${field}`;
-    if (validationErrors[fieldKey]) {
+    if (validationErrors[field]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
-        delete newErrors[fieldKey];
+        delete newErrors[field];
         return newErrors;
       });
     }
 
     // Trigger API key validation
-    if (section === 'basic_setup' && field === 'openrouter_api_key') {
+    if (field === 'openrouter_api_key') {
       setTimeout(() => validateApiKey(value), 500); // Debounce
     }
+  };
+
+  const handleRagChange = (field: keyof RagConfig, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      rag: prev.rag ? {
+        ...prev.rag,
+        [field]: value,
+      } : null,
+    }));
+  };
+
+  const handleMilvusChange = (field: keyof RagMilvusConfig, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      rag: prev.rag ? {
+        ...prev.rag,
+        milvus: prev.rag.milvus ? {
+          ...prev.rag.milvus,
+          [field]: value,
+        } : null
+      } : null,
+    }));
+  };
+
+  const addDomain = () => {
+    if (formData.domain_input.trim() && !formData.allowed_domains.includes(formData.domain_input.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        allowed_domains: [...prev.allowed_domains, prev.domain_input.trim()],
+        domain_input: '',
+      }));
+    }
+  };
+
+  const removeDomain = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      allowed_domains: prev.allowed_domains.filter((_, i) => i !== index),
+    }));
   };
 
   const validateForm = (): boolean => {
@@ -197,16 +246,24 @@ function TenantRegistrationPageContent() {
       errors['tenant_id'] = 'Tenant ID is required';
     }
 
-    if (!formData.basic_setup.openrouter_api_key.trim()) {
-      errors['basic_setup.openrouter_api_key'] = 'OpenRouter API key is required';
+    if (!formData.openrouter_api_key.trim()) {
+      errors['openrouter_api_key'] = 'OpenRouter API key is required';
     }
 
     if (!apiKeyValidation?.valid) {
-      errors['basic_setup.openrouter_api_key'] = 'Valid API key is required';
+      errors['openrouter_api_key'] = 'Valid API key is required';
     }
 
-    if (!formData.rag_config.collection_name.trim()) {
-      errors['rag_config.collection_name'] = 'Collection name is required';
+    if (!formData.system_prompt.trim()) {
+      errors['system_prompt'] = 'System prompt is required';
+    }
+
+    if (formData.allowed_domains.length === 0) {
+      errors['allowed_domains'] = 'At least one allowed domain is required';
+    }
+
+    if (formData.rag?.enabled && (!formData.rag.milvus?.collection.trim())) {
+      errors['rag_collection'] = 'Collection name is required when RAG is enabled';
     }
 
     setValidationErrors(errors);
@@ -219,10 +276,13 @@ function TenantRegistrationPageContent() {
     setIsSubmitting(true);
     try {
       const registrationData: TenantRegistrationData = {
-        tenant_id: formData.tenant_id,
-        basic_setup: formData.basic_setup,
-        rag_config: formData.rag_config,
-        advanced_settings: formData.advanced_settings,
+        openrouter_api_key: formData.openrouter_api_key,
+        system_prompt: formData.system_prompt,
+        allowed_domains: formData.allowed_domains,
+        model: formData.model,
+        rate_limit_per_minute: formData.rate_limit_per_minute,
+        rate_limit_per_hour: formData.rate_limit_per_hour,
+        rag: formData.rag,
       };
 
       const result = await api.registerTenant(registrationData);
@@ -249,10 +309,11 @@ function TenantRegistrationPageContent() {
   };
 
   const isFormValid = () => {
-    return formData.tenant_id.trim() && 
-           formData.basic_setup.openrouter_api_key.trim() && 
+    return formData.tenant_id.trim() &&
+           formData.openrouter_api_key.trim() &&
+           formData.system_prompt.trim() &&
+           formData.allowed_domains.length > 0 &&
            apiKeyValidation?.valid &&
-           formData.rag_config.collection_name.trim() &&
            Object.keys(validationErrors).length === 0;
   };
 
@@ -327,9 +388,9 @@ function TenantRegistrationPageContent() {
                     <input
                       id="openrouter_api_key"
                       type="password"
-                      value={formData.basic_setup.openrouter_api_key}
-                      onChange={(e) => handleNestedInputChange('basic_setup', 'openrouter_api_key', e.target.value)}
-                      className={validationErrors['basic_setup.openrouter_api_key'] ? 'error' : ''}
+                      value={formData.openrouter_api_key}
+                      onChange={(e) => handleInputChange('openrouter_api_key', e.target.value)}
+                      className={validationErrors['openrouter_api_key'] ? 'error' : ''}
                       placeholder="sk-or-..."
                     />
                     {isValidatingKey && (
@@ -348,8 +409,8 @@ function TenantRegistrationPageContent() {
                       </div>
                     )}
                   </div>
-                  {validationErrors['basic_setup.openrouter_api_key'] && (
-                    <span className="error-message">{validationErrors['basic_setup.openrouter_api_key']}</span>
+                  {validationErrors['openrouter_api_key'] && (
+                    <span className="error-message">{validationErrors['openrouter_api_key']}</span>
                   )}
                   {apiKeyValidation?.valid && apiKeyValidation.models && (
                     <div className="success-message">
@@ -358,61 +419,101 @@ function TenantRegistrationPageContent() {
                   )}
                 </div>
 
+                <div className="form-group">
+                  <label htmlFor="system_prompt">System Prompt <span className="required">*</span></label>
+                  <textarea
+                    id="system_prompt"
+                    value={formData.system_prompt}
+                    onChange={(e) => handleInputChange('system_prompt', e.target.value)}
+                    className={validationErrors['system_prompt'] ? 'error' : ''}
+                    placeholder="You are a helpful AI assistant..."
+                    rows={4}
+                  />
+                  {validationErrors['system_prompt'] && (
+                    <span className="error-message">{validationErrors['system_prompt']}</span>
+                  )}
+                  <small>Define how the AI should behave and respond to users</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="allowed_domains">Allowed Domains <span className="required">*</span></label>
+                  <div className="domain-input-group">
+                    <input
+                      id="domain_input"
+                      type="text"
+                      value={formData.domain_input}
+                      onChange={(e) => handleInputChange('domain_input', e.target.value)}
+                      placeholder="example.com"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addDomain();
+                        }
+                      }}
+                    />
+                    <button type="button" onClick={addDomain} className="add-domain-btn">
+                      Add Domain
+                    </button>
+                  </div>
+                  {validationErrors['allowed_domains'] && (
+                    <span className="error-message">{validationErrors['allowed_domains']}</span>
+                  )}
+                  <div className="domain-list">
+                    {formData.allowed_domains.map((domain, index) => (
+                      <div key={index} className="domain-tag">
+                        <span>{domain}</span>
+                        <button type="button" onClick={() => removeDomain(index)} className="remove-domain-btn">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <small>Domains where this tenant can be embedded (e.g., example.com, *.example.com)</small>
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="model_name">Model</label>
+                    <label htmlFor="model">Model</label>
                     <select
-                      id="model_name"
-                      value={formData.basic_setup.model_name}
-                      onChange={(e) => handleNestedInputChange('basic_setup', 'model_name', e.target.value)}
+                      id="model"
+                      value={formData.model}
+                      onChange={(e) => handleInputChange('model', e.target.value)}
                     >
                       {apiKeyValidation?.models ? (
                         apiKeyValidation.models.map(model => (
                           <option key={model} value={model}>{model}</option>
                         ))
                       ) : (
-                        <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+                        <option value="anthropic/claude-3.5-sonnet">anthropic/claude-3.5-sonnet</option>
                       )}
                     </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="max_tokens">Max Tokens</label>
-                    <input
-                      id="max_tokens"
-                      type="number"
-                      value={formData.basic_setup.max_tokens}
-                      onChange={(e) => handleNestedInputChange('basic_setup', 'max_tokens', parseInt(e.target.value))}
-                      min="1"
-                      max="8192"
-                    />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="temperature">Temperature</label>
+                    <label htmlFor="rate_limit_per_minute">Rate Limit (per minute)</label>
                     <input
-                      id="temperature"
+                      id="rate_limit_per_minute"
                       type="number"
-                      value={formData.basic_setup.temperature}
-                      onChange={(e) => handleNestedInputChange('basic_setup', 'temperature', parseFloat(e.target.value))}
-                      min="0"
-                      max="2"
-                      step="0.1"
+                      value={formData.rate_limit_per_minute || ''}
+                      onChange={(e) => handleInputChange('rate_limit_per_minute', e.target.value ? parseInt(e.target.value) : null)}
+                      min="1"
+                      max="1000"
+                      placeholder="100"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="top_p">Top P</label>
+                    <label htmlFor="rate_limit_per_hour">Rate Limit (per hour)</label>
                     <input
-                      id="top_p"
+                      id="rate_limit_per_hour"
                       type="number"
-                      value={formData.basic_setup.top_p}
-                      onChange={(e) => handleNestedInputChange('basic_setup', 'top_p', parseFloat(e.target.value))}
-                      min="0"
-                      max="1"
-                      step="0.1"
+                      value={formData.rate_limit_per_hour || ''}
+                      onChange={(e) => handleInputChange('rate_limit_per_hour', e.target.value ? parseInt(e.target.value) : null)}
+                      min="1"
+                      max="10000"
+                      placeholder="1000"
                     />
                   </div>
                 </div>
@@ -425,154 +526,202 @@ function TenantRegistrationPageContent() {
                 <p>Configure your vector database and retrieval settings.</p>
 
                 <div className="form-group">
-                  <label htmlFor="collection_name">Collection Name</label>
-                  <input
-                    id="collection_name"
-                    type="text"
-                    value={formData.rag_config.collection_name}
-                    onChange={(e) => handleNestedInputChange('rag_config', 'collection_name', e.target.value)}
-                    className={validationErrors['rag_config.collection_name'] ? 'error' : ''}
-                    placeholder="Documents collection name"
-                  />
-                  {validationErrors['rag_config.collection_name'] && (
-                    <span className="error-message">{validationErrors['rag_config.collection_name']}</span>
-                  )}
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="milvus_host">Milvus Host</label>
-                    <input
-                      id="milvus_host"
-                      type="text"
-                      value={formData.rag_config.milvus_host}
-                      onChange={(e) => handleNestedInputChange('rag_config', 'milvus_host', e.target.value)}
-                      placeholder="localhost"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="milvus_port">Milvus Port</label>
-                    <input
-                      id="milvus_port"
-                      type="number"
-                      value={formData.rag_config.milvus_port}
-                      onChange={(e) => handleNestedInputChange('rag_config', 'milvus_port', parseInt(e.target.value))}
-                      min="1"
-                      max="65535"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="embedding_model">Embedding Model</label>
-                  <select
-                    id="embedding_model"
-                    value={formData.rag_config.embedding_model}
-                    onChange={(e) => handleNestedInputChange('rag_config', 'embedding_model', e.target.value)}
-                  >
-                    <option value="voyage-3">Voyage AI - voyage-3</option>
-                    <option value="voyage-large-2">Voyage AI - voyage-large-2</option>
-                    <option value="voyage-code-2">Voyage AI - voyage-code-2</option>
-                    <option value="text-embedding-3-small">OpenAI - text-embedding-3-small</option>
-                    <option value="text-embedding-3-large">OpenAI - text-embedding-3-large</option>
-                  </select>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="chunk_size">Chunk Size</label>
-                    <input
-                      id="chunk_size"
-                      type="number"
-                      value={formData.rag_config.chunk_size}
-                      onChange={(e) => handleNestedInputChange('rag_config', 'chunk_size', parseInt(e.target.value))}
-                      min="100"
-                      max="4000"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="chunk_overlap">Chunk Overlap</label>
-                    <input
-                      id="chunk_overlap"
-                      type="number"
-                      value={formData.rag_config.chunk_overlap}
-                      onChange={(e) => handleNestedInputChange('rag_config', 'chunk_overlap', parseInt(e.target.value))}
-                      min="0"
-                      max="1000"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
-                      checked={formData.rag_config.enable_hybrid_search}
-                      onChange={(e) => handleNestedInputChange('rag_config', 'enable_hybrid_search', e.target.checked)}
+                      checked={formData.rag?.enabled || false}
+                      onChange={(e) => handleRagChange('enabled', e.target.checked)}
                     />
-                    <span>Enable Hybrid Search</span>
-                    <small>Combines semantic and keyword search for better results</small>
+                    <span>Enable RAG</span>
+                    <small>Enable Retrieval-Augmented Generation for document search</small>
                   </label>
                 </div>
+
+                {formData.rag?.enabled && (
+                  <>
+                    <div className="form-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.rag.self_rag_enabled || false}
+                          onChange={(e) => handleRagChange('self_rag_enabled', e.target.checked)}
+                        />
+                        <span>Enable Self-RAG</span>
+                        <small>Advanced RAG with self-reflection capabilities</small>
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="collection_name">Collection Name</label>
+                      <input
+                        id="collection_name"
+                        type="text"
+                        value={formData.rag.milvus?.collection || ''}
+                        onChange={(e) => handleMilvusChange('collection', e.target.value)}
+                        className={validationErrors['rag_collection'] ? 'error' : ''}
+                        placeholder="Documents collection name"
+                      />
+                      {validationErrors['rag_collection'] && (
+                        <span className="error-message">{validationErrors['rag_collection']}</span>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="milvus_uri">Milvus URI</label>
+                      <input
+                        id="milvus_uri"
+                        type="text"
+                        value={formData.rag.milvus?.uri || ''}
+                        onChange={(e) => handleMilvusChange('uri', e.target.value)}
+                        placeholder="http://localhost:19530"
+                      />
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="milvus_token">Milvus Token (optional)</label>
+                        <input
+                          id="milvus_token"
+                          type="password"
+                          value={formData.rag.milvus?.token || ''}
+                          onChange={(e) => handleMilvusChange('token', e.target.value || null)}
+                          placeholder="Authentication token"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="milvus_db_name">Database Name (optional)</label>
+                        <input
+                          id="milvus_db_name"
+                          type="text"
+                          value={formData.rag.milvus?.db_name || ''}
+                          onChange={(e) => handleMilvusChange('db_name', e.target.value || null)}
+                          placeholder="default"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="embedding_provider">Embedding Provider</label>
+                      <select
+                        id="embedding_provider"
+                        value={formData.rag.embedding_provider}
+                        onChange={(e) => handleRagChange('embedding_provider', e.target.value as 'sentence_transformers' | 'openai' | 'voyageai')}
+                      >
+                        <option value="sentence_transformers">Sentence Transformers (Local)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="voyageai">Voyage AI</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="embedding_model">Embedding Model</label>
+                      <input
+                        id="embedding_model"
+                        type="text"
+                        value={formData.rag.embedding_model}
+                        onChange={(e) => handleRagChange('embedding_model', e.target.value)}
+                        placeholder="sentence-transformers/all-MiniLM-L6-v2"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="top_k">Top K Results</label>
+                      <input
+                        id="top_k"
+                        type="number"
+                        value={formData.rag.top_k}
+                        onChange={(e) => handleRagChange('top_k', parseInt(e.target.value))}
+                        min="1"
+                        max="20"
+                      />
+                      <small>Number of relevant documents to retrieve</small>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="vector_field">Vector Field</label>
+                        <input
+                          id="vector_field"
+                          type="text"
+                          value={formData.rag.milvus?.vector_field || ''}
+                          onChange={(e) => handleMilvusChange('vector_field', e.target.value)}
+                          placeholder="embedding"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="text_field">Text Field</label>
+                        <input
+                          id="text_field"
+                          type="text"
+                          value={formData.rag.milvus?.text_field || ''}
+                          onChange={(e) => handleMilvusChange('text_field', e.target.value)}
+                          placeholder="text"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="metric_type">Metric Type</label>
+                      <select
+                        id="metric_type"
+                        value={formData.rag.milvus?.metric_type || 'IP'}
+                        onChange={(e) => handleMilvusChange('metric_type', e.target.value as 'IP' | 'COSINE' | 'L2')}
+                      >
+                        <option value="IP">Inner Product (IP)</option>
+                        <option value="COSINE">Cosine Similarity</option>
+                        <option value="L2">Euclidean Distance (L2)</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {activeTab === 'advanced' && (
               <div className="form-section">
                 <h3>Advanced Settings</h3>
-                <p>Configure Redis connection and rate limiting.</p>
+                <p>Additional configuration options and provider keys.</p>
 
-                <div className="form-row">
+                {formData.rag?.enabled && formData.rag.embedding_provider !== 'sentence_transformers' && (
                   <div className="form-group">
-                    <label htmlFor="redis_host">Redis Host</label>
+                    <label htmlFor="provider_api_key">
+                      {formData.rag.embedding_provider === 'openai' ? 'OpenAI API Key' : 'Voyage AI API Key'}
+                    </label>
                     <input
-                      id="redis_host"
-                      type="text"
-                      value={formData.advanced_settings.redis_host}
-                      onChange={(e) => handleNestedInputChange('advanced_settings', 'redis_host', e.target.value)}
-                      placeholder="localhost"
+                      id="provider_api_key"
+                      type="password"
+                      value={formData.rag.provider_keys[formData.rag.embedding_provider] || ''}
+                      onChange={(e) => {
+                        const provider = formData.rag!.embedding_provider;
+                        setFormData(prev => ({
+                          ...prev,
+                          rag: prev.rag ? {
+                            ...prev.rag,
+                            provider_keys: {
+                              ...prev.rag.provider_keys,
+                              [provider]: e.target.value
+                            }
+                          } : null
+                        }));
+                      }}
+                      placeholder={`Enter ${formData.rag.embedding_provider} API key`}
                     />
+                    <small>Required for {formData.rag.embedding_provider} embedding provider</small>
                   </div>
+                )}
 
-                  <div className="form-group">
-                    <label htmlFor="redis_port">Redis Port</label>
-                    <input
-                      id="redis_port"
-                      type="number"
-                      value={formData.advanced_settings.redis_port}
-                      onChange={(e) => handleNestedInputChange('advanced_settings', 'redis_port', parseInt(e.target.value))}
-                      min="1"
-                      max="65535"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="rate_limit_requests">Rate Limit Requests</label>
-                    <input
-                      id="rate_limit_requests"
-                      type="number"
-                      value={formData.advanced_settings.rate_limit_requests}
-                      onChange={(e) => handleNestedInputChange('advanced_settings', 'rate_limit_requests', parseInt(e.target.value))}
-                      min="1"
-                      max="10000"
-                    />
-                    <small>Maximum requests per time window</small>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="rate_limit_window">Rate Limit Window (seconds)</label>
-                    <input
-                      id="rate_limit_window"
-                      type="number"
-                      value={formData.advanced_settings.rate_limit_window}
-                      onChange={(e) => handleNestedInputChange('advanced_settings', 'rate_limit_window', parseInt(e.target.value))}
-                      min="1"
-                      max="3600"
-                    />
+                <div className="form-group">
+                  <h4>Form Summary</h4>
+                  <div className="summary-info">
+                    <p><strong>Tenant ID:</strong> {formData.tenant_id || 'Not set'}</p>
+                    <p><strong>Model:</strong> {formData.model}</p>
+                    <p><strong>Allowed Domains:</strong> {formData.allowed_domains.length} domain(s)</p>
+                    <p><strong>RAG Enabled:</strong> {formData.rag?.enabled ? 'Yes' : 'No'}</p>
+                    {formData.rag?.enabled && (
+                      <p><strong>Collection:</strong> {formData.rag.milvus?.collection || 'Not set'}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -658,7 +807,8 @@ function TenantRegistrationPageContent() {
           }
 
           .form-group input,
-          .form-group select {
+          .form-group select,
+          .form-group textarea {
             width: 100%;
             padding: 0.75rem;
             background: rgba(255, 255, 255, 0.05);
@@ -667,23 +817,114 @@ function TenantRegistrationPageContent() {
             color: #ffffff;
             font-size: 0.875rem;
             transition: all 0.2s ease;
+            font-family: inherit;
+            resize: vertical;
           }
 
           .form-group input:focus,
-          .form-group select:focus {
+          .form-group select:focus,
+          .form-group textarea:focus {
             outline: none;
             border-color: #007bff;
             background: rgba(255, 255, 255, 0.1);
           }
 
           .form-group input.error,
-          .form-group select.error {
+          .form-group select.error,
+          .form-group textarea.error {
             border-color: #ef4444;
             background: rgba(239, 68, 68, 0.1);
           }
 
-          .form-group input::placeholder {
+          .form-group input::placeholder,
+          .form-group textarea::placeholder {
             color: rgba(255, 255, 255, 0.5);
+          }
+
+          .required {
+            color: #ef4444;
+            font-weight: bold;
+          }
+
+          .domain-input-group {
+            display: flex;
+            gap: 0.5rem;
+          }
+
+          .domain-input-group input {
+            flex: 1;
+          }
+
+          .add-domain-btn {
+            padding: 0.75rem 1rem;
+            background: #007bff;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s ease;
+            white-space: nowrap;
+          }
+
+          .add-domain-btn:hover {
+            background: #0056b3;
+          }
+
+          .domain-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+          }
+
+          .domain-tag {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 123, 255, 0.2);
+            border: 1px solid rgba(0, 123, 255, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #ffffff;
+          }
+
+          .remove-domain-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+          }
+
+          .remove-domain-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+          }
+
+          .summary-info {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 1rem;
+          }
+
+          .summary-info p {
+            margin: 0.5rem 0;
+            color: rgba(255, 255, 255, 0.9);
+          }
+
+          .summary-info strong {
+            color: #ffffff;
           }
 
           .form-group small {

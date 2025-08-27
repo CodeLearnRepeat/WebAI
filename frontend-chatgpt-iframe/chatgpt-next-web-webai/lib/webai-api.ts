@@ -329,32 +329,38 @@ export function createWebAIFromParams(): WebAIApi | null {
 }
 
 /**
- * Tenant Setup Types
+ * Tenant Setup Types - Updated to match backend schema
  */
 export interface TenantRegistrationData {
-  tenant_id: string;
-  basic_setup: {
-    openrouter_api_key: string;
-    model_name?: string;
-    max_tokens?: number;
-    temperature?: number;
-    top_p?: number;
-  };
-  rag_config?: {
-    collection_name?: string;
-    milvus_host?: string;
-    milvus_port?: number;
-    embedding_model?: string;
-    chunk_size?: number;
-    chunk_overlap?: number;
-    enable_hybrid_search?: boolean;
-  };
-  advanced_settings?: {
-    redis_host?: string;
-    redis_port?: number;
-    rate_limit_requests?: number;
-    rate_limit_window?: number;
-  };
+  openrouter_api_key: string;
+  system_prompt: string;
+  allowed_domains: string[];
+  model?: string;
+  rate_limit_per_minute?: number;
+  rate_limit_per_hour?: number;
+  rag?: RagConfig;
+}
+
+export interface RagMilvusConfig {
+  uri: string;
+  token?: string;
+  db_name?: string;
+  collection: string;
+  vector_field?: string;
+  text_field?: string;
+  metadata_field?: string;
+  metric_type?: 'IP' | 'COSINE' | 'L2';
+}
+
+export interface RagConfig {
+  enabled?: boolean;
+  self_rag_enabled?: boolean;
+  provider?: 'milvus';
+  milvus?: RagMilvusConfig;
+  embedding_provider?: 'sentence_transformers' | 'openai' | 'voyageai';
+  embedding_model?: string;
+  provider_keys?: Record<string, string>;
+  top_k?: number;
 }
 
 export interface SystemCapabilities {
@@ -430,12 +436,16 @@ export class WebAITenantSetupApi extends WebAIApi {
   /**
    * Register a new tenant
    */
-  async registerTenant(tenantData: TenantRegistrationData): Promise<{ tenant_id: string; status: string }> {
+  async registerTenant(tenantData: TenantRegistrationData): Promise<{ tenant_id: string; message: string }> {
     try {
-      const response = await fetch(`${this.config.apiUrl}/tenants`, {
+      // Get admin key from environment or use default
+      const adminKey = process.env.NEXT_PUBLIC_WEBAI_ADMIN_KEY || '0f81c721-dffa-4d78-9c63-a4f4bb037f82';
+      
+      const response = await fetch(`${this.config.apiUrl}/register-tenant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Admin-Key': adminKey,
         },
         body: JSON.stringify(tenantData),
       });
