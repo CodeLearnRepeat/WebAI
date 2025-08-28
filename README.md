@@ -1,4 +1,4 @@
-# WebAI Backend (FastAPI)
+https://web3ai.vercel.app# WebAI Backend (FastAPI)
 
 A sophisticated multi-tenant FastAPI backend for the WebAI project with comprehensive RAG (Retrieval Augmented Generation) capabilities, featuring advanced streaming processing, intelligent batching, and enterprise-grade reliability.
 
@@ -11,7 +11,7 @@ The WebAI backend is built with a modern, scalable architecture:
 - **Memory-Efficient Streaming** - Process large JSON files without memory overflow using ijson streaming
 - **Intelligent Batching** - VoyageAI-optimized batching system respecting token and chunk limits
 - **Vector Store Integration** - Milvus/Zilliz Cloud support with configurable metrics and collections
-- **External API Integrations** - OpenRouter for LLMs, VoyageAI for embeddings, OpenAI compatibility
+- **External API Integrations** - OpenRouter for LLMs, VoyageAI for embeddings,
 - **Redis Infrastructure** - Caching, rate limiting, conversation storage, and task management
 - **Comprehensive Testing** - Full test suite covering performance, recovery, and integration scenarios
 - **Docker Containerization** - Production-ready containers optimized for Google Cloud Run
@@ -48,7 +48,6 @@ sentence-transformers>=3.0.0  # Local sentence embeddings
 numpy                          # Numerical computations
 
 # External API Clients
-openai>=1.37.0         # OpenAI API client
 voyageai>=0.2.3        # VoyageAI embeddings client
 
 # JSON Processing & Validation
@@ -367,9 +366,9 @@ curl -X POST https://YOUR-API-URL/register-tenant \
       "self_rag_enabled": true,
       "provider": "milvus",
       "top_k": 5,
-      "embedding_provider": "openai",
+      "embedding_provider": "voyageai",
       "embedding_model": "text-embedding-3-small",
-      "provider_keys": { "openai": "sk-your-openai-key" },
+      "provider_keys": { "voyageai": "your-voyage-api-key" },
       "milvus": {
         "uri": "http://localhost:19530",
         "db_name": "_default",
@@ -683,15 +682,7 @@ The Self-RAG system supports advanced configuration options:
 - `voyage-3` (1024 dimensions, high quality)
 - `voyage-large-2-instruct` (16k context, specialized)
 
-#### OpenAI
-```json
-{
-  "embedding_provider": "openai",
-  "embedding_model": "text-embedding-3-small",
-  "provider_keys": {
-    "openai": "sk-your-api-key"
-  }
-}
+
 ```
 
 #### Sentence Transformers (Local, No API Key Required)
