@@ -1,4 +1,4 @@
-https://web3ai.vercel.app# WebAI Backend (FastAPI)
+# WebAI Backend (FastAPI)
 
 A sophisticated multi-tenant FastAPI backend for the WebAI project with comprehensive RAG (Retrieval Augmented Generation) capabilities, featuring advanced streaming processing, intelligent batching, and enterprise-grade reliability.
 
