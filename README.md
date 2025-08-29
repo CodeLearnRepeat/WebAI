@@ -37,7 +37,7 @@ uvicorn[standard]       # ASGI server with performance optimizations
 httpx                   # Async HTTP client for external APIs
 
 # Data Validation & Serialization
-pydantic<2              # Data validation and settings management
+pydantic>=2             # Data validation and settings management
 
 # Database & Caching
 redis                   # Redis client for caching and rate limiting
