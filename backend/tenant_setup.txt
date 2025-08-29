@@ -184,43 +184,6 @@ bash
 
 
 Execute Streaming Upload with Enhanced Features
-curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: tenant_Tgyrz826g6McXjlQX173RA" \
-  -F "file=@/Users/finn/Desktop/BATCH/scrape/scraped_content_successful2.json" \
-  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
-  -F "embedding_provider=voyageai" \
-  -F "embedding_model=voyage-law-2" \
-  -F "enable_chunking_enhancement=true" \
-  -F "max_tokens_per_chunk=1000"
-
-
-curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
-  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json" \
-  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
-  -F "embedding_provider=voyageai" \
-  -F "embedding_model=voyage-law-2" \
-  -F "enable_chunking_enhancement=true" \
-  -F "max_tokens_per_chunk=1000"
-
-curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
-  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json"
-  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
-  -F "embedding_provider=voyageai" \
-  -F "embedding_model=voyage-law-2" \
-  -F "enable_chunking_enhancement=true" \
-  -F "max_tokens_per_chunk=1000"
-
-curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
-  -F "file=@anotherone.json" \
-  -F "schema_json=$(cat /Users/finn/Desktop/WEBAII/backend/schema_config.json)" \
-  -F "embedding_provider=voyageai" \
-  -F "embedding_model=voyage-law-2" \
-  -F "enable_chunking_enhancement=true" \
-  -F "max_tokens_per_chunk=1000"
-
 
 curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
   -H "X-Tenant-Id: tenant_GYqoAcmtof8XGiwBnqS57Q" \
@@ -231,6 +194,7 @@ curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/rag
   -F "enable_chunking_enhancement=true" \
   -F "max_tokens_per_chunk=1000"
 
+Update Env Vars
 
 gcloud run services update web3ai-backend-v21-api \
   --region us-central1 \
