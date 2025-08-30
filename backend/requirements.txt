@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 httpx
-pydantic<2
+pydantic
 pydantic-settings
 redis
 pymilvus>=2.4.4
@@ -14,3 +14,4 @@ python-multipart
 ijson>=3.2.0
 tiktoken>=0.5.0
 aiofiles>=23.0.0
+PyYAML

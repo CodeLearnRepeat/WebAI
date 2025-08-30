@@ -1,12 +1,13 @@
-REDIS_URL: 
-CONVERSATION_REDIS_URL: 
+REDIS_URL: "redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"
+CONVERSATION_REDIS_URL: "redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"
 WEBAI_ADMIN_KEY: "0f81c721-dffa-4d78-9c63-a4f4bb037f82"
 RATE_LIMIT_PER_MINUTE: "30"
 RATE_LIMIT_PER_HOUR: "1000"
-OPENROUTER_HTTP_REFERER: "https://web3ai.vercel.app"
+OPENROUTER_HTTP_REFERER: "https://webai-liart.vercel.app"
 OPENROUTER_X_TITLE: "WebAI_Chat_Widget"
 STRIPE_SECRET_KEY: 
 STRIPE_PUBLISHABLE_KEY: 
 STRIPE_WEBHOOK_SECRET: 
 NODE_ENV: "production"
+
 

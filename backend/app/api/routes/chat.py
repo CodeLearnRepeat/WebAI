@@ -121,3 +121,18 @@ async def chat_stream(request_data: ChatRequest, request: Request, x_tenant_id: 
     except Exception as e:
         print(f"Chat error for tenant {x_tenant_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/conversations/{session_id}")
+async def get_conversation(
+    session_id: str, 
+    x_tenant_id: str = Header(None)
+):
+    if not x_tenant_id:
+        raise HTTPException(status_code=401, detail="Tenant ID required")
+    
+    tenant_config = get_tenant_config(x_tenant_id)
+    if not tenant_config:
+        raise HTTPException(status_code=403, detail="Unknown tenant")
+    
+    history = await get_conversation_history(x_tenant_id, session_id, True)
+    return history

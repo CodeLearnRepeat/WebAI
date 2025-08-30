@@ -4,8 +4,9 @@
 Step 1: System Deployment
 Deploy Backend to Google Cloud Run
 # Deploy the Web3AI backend service with streaming capabilities
-gcloud run deploy web3ai-backend-v34-api \
-  --image gcr.io/rhtai-464618/webai-backend-v34:latest \
+
+gcloud run deploy web3ai-backend-v67-api \
+  --image gcr.io/rhtai-464618/web3ai-backend-v67:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -17,7 +18,10 @@ gcloud run deploy web3ai-backend-v34-api \
   --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
   --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
+  --set-env-vars="OPENROUTER_HTTP_REFERER=https://webai-liart.vercel.app" \
   --set-env-vars="OPENROUTER_X_TITLE=Web3AI Assistant"
+
+
 
 # Expected output: Service URL
 # https://web3ai-backend-v26-api-180395924844.us-central1.run.app
@@ -27,13 +31,13 @@ New ADMIN KEY: 0f81c721-dffa-4d78-9c63-a4f4bb037f82
 
 Step 2: Tenant Registration with Enhanced RAG Configuration
 Register Tenant with Streaming-Optimized Configuration
-curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/register-tenant \
+curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/register-tenant \
   -H "Content-Type: application/json" \
   -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   -d '{
     "openrouter_api_key": "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",
     "system_prompt": "You are a helpful AI assistant. Use the provided context to answer questions accurately.",
-    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app", "https://chatgpt-next-web-webai.vercel.app"],
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app", "chatgpt-next-web-webai.vercel.app","webai-liart.vercel.app","https://webai-liart.vercel.app"],
     "model": "google/gemini-2.5-flash",
     "rate_limit_per_minute": 30,
     "rate_limit_per_hour": 500,
@@ -51,7 +55,7 @@ curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/reg
         "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
         "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
         "db_name": "RHTAI",
-        "collection": "website_info_2",
+        "collection": "website_info_233",
         "vector_field": "embedding",
         "text_field": "text",
         "metadata_field": "metadata",
@@ -72,7 +76,10 @@ export TENANT_ID="tenant_ABC123DEF456GHI789"
 
 bash
 
+tenant_CfmIhmjL0eY3vVqh90XI0g
 
+
+gcloud run services describe web3ai-backend-v65-api --region=us-central1
 
 Step 3: Verify System Capabilities
 Check Processing Capabilities
@@ -185,10 +192,10 @@ bash
 
 Execute Streaming Upload with Enhanced Features
 
-curl -X POST https://web3ai-backend-v34-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
-  -H "X-Tenant-Id: tenant_GYqoAcmtof8XGiwBnqS57Q" \
-  -F "file=@/Users/finn/Desktop/WEBAII/backend/anotherone.json" \
-  -F "schema_json=$(cat schema_config.json)" \
+curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_vVdw1P_8ur10FyG58wFClg" \
+  -F "file=@/Users/finn/Desktop/STFU/WebAI/backend/anotherone.json" \
+  -F "schema_json=$(cat /Users/finn/Desktop/STFU/WebAI/backend/schema_config.json)" \
   -F "embedding_provider=voyageai" \
   -F "embedding_model=voyage-law-2" \
   -F "enable_chunking_enhancement=true" \
