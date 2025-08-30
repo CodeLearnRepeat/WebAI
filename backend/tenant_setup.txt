@@ -13,9 +13,9 @@ gcloud run deploy web3ai-backend-v67-api \
   --cpu=2 \
   --memory=4Gi \
   --timeout=3600 \
-  --set-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
-  --set-env-vars="CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711" \
-  --set-env-vars="WEBAI_ADMIN_KEY=0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
+  --set-env-vars="REDIS_URL=" \
+  --set-env-vars="CONVERSATION_REDIS_URL=" \
+  --set-env-vars="WEBAI_ADMIN_KEY=" \
   --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
   --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
   --set-env-vars="OPENROUTER_HTTP_REFERER=https://webai-liart.vercel.app" \
@@ -24,10 +24,9 @@ gcloud run deploy web3ai-backend-v67-api \
 
 
 # Expected output: Service URL
-# https://web3ai-backend-v26-api-180395924844.us-central1.run.app
+# https://web3ai-backend-v26-api-180395924844.us-central1.run.app (example)
 
 bash
-New ADMIN KEY: 0f81c721-dffa-4d78-9c63-a4f4bb037f82
 
 Step 2: Tenant Registration with Enhanced RAG Configuration
 Register Tenant with Streaming-Optimized Configuration
@@ -35,7 +34,7 @@ curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/reg
   -H "Content-Type: application/json" \
   -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
   -d '{
-    "openrouter_api_key": "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",
+    "openrouter_api_key": "sk-or-v1-...",
     "system_prompt": "You are a helpful AI assistant. Use the provided context to answer questions accurately.",
     "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app", "chatgpt-next-web-webai.vercel.app","webai-liart.vercel.app","https://webai-liart.vercel.app"],
     "model": "google/gemini-2.5-flash",
@@ -53,7 +52,7 @@ curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/reg
       "top_k": 5,
       "milvus": {
         "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
-        "token": "8c8d4d5f6cb3926e46e39c6eeca8c69bb3601c7e5a1586be40c6add0b90bb60e71506ab78a2229c4fe27bc526a8ab1ad30d60a1b",
+        "token": "",
         "db_name": "RHTAI",
         "collection": "website_info_233",
         "vector_field": "embedding",
