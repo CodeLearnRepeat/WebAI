@@ -698,7 +698,7 @@ export function createTenantSetupApi(): WebAITenantSetupApi | null {
   const params = new URLSearchParams(window.location.search);
   
   // Access environment variable in Next.js client-side
-  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v65-api-180395924844.us-central1.run.app';
+  const apiUrl = process.env.NEXT_PUBLIC_WEBAI_API_URL || 'https://web3ai-backend-v67-api-180395924844.us-central1.run.app';
 
   const config: WebAIConfig = {
     apiUrl,
