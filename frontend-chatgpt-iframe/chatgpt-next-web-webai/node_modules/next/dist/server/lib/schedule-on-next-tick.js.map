@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/server/lib/schedule-on-next-tick.ts"],"names":["scheduleOnNextTick","cb","Promise","resolve","then","process","nextTick"],"mappings":";;;;+BAOaA;;;eAAAA;;;AAAN,MAAMA,qBAAqB,CAAWC;IAC3C,6EAA6E;IAC7E,4EAA4E;IAC5E,uCAAuC;IACvC,EAAE;IACF,kLAAkL;IAClL,EAAE;IACFC,QAAQC,OAAO,GAAGC,IAAI,CAAC;QACrBC,QAAQC,QAAQ,CAACL;IACnB;AACF"}

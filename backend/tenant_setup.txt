@@ -1,0 +1,252 @@
+
+
+
+Step 1: System Deployment
+Deploy Backend to Google Cloud Run
+# Deploy the Web3AI backend service with streaming capabilities
+
+gcloud run deploy web3ai-backend-v67-api \
+  --image gcr.io/rhtai-464618/web3ai-backend-v67:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --cpu=2 \
+  --memory=4Gi \
+  --timeout=3600 \
+  --set-env-vars="REDIS_URL=" \
+  --set-env-vars="CONVERSATION_REDIS_URL=" \
+  --set-env-vars="WEBAI_ADMIN_KEY=" \
+  --set-env-vars="RATE_LIMIT_PER_MINUTE=30" \
+  --set-env-vars="RATE_LIMIT_PER_HOUR=1000" \
+  --set-env-vars="OPENROUTER_HTTP_REFERER=https://webai-liart.vercel.app" \
+  --set-env-vars="OPENROUTER_X_TITLE=Web3AI Assistant"
+
+
+
+# Expected output: Service URL
+# https://web3ai-backend-v26-api-180395924844.us-central1.run.app (example)
+
+bash
+
+Step 2: Tenant Registration with Enhanced RAG Configuration
+Register Tenant with Streaming-Optimized Configuration
+curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/register-tenant \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: 0f81c721-dffa-4d78-9c63-a4f4bb037f82" \
+  -d '{
+    "openrouter_api_key": "sk-or-v1-...",
+    "system_prompt": "You are a helpful AI assistant. Use the provided context to answer questions accurately.",
+    "allowed_domains": ["web3ai.vercel.app", "r2ai.vercel.app", "chatgpt-next-web-webai.vercel.app","webai-liart.vercel.app","https://webai-liart.vercel.app"],
+    "model": "google/gemini-2.5-flash",
+    "rate_limit_per_minute": 30,
+    "rate_limit_per_hour": 500,
+    "rag": {
+      "enabled": true,
+      "self_rag_enabled": true,
+      "provider": "milvus",
+      "embedding_provider": "voyageai",
+      "embedding_model": "voyage-law-2",
+      "provider_keys": {
+        "voyageai": "pa-bjQqpaOLZQ9Z8V35322F7XboWIYsVQklWdg_25RdNkK"
+      },
+      "top_k": 5,
+      "milvus": {
+        "uri": "https://in03-7b3940c7c2d29d3.serverless.gcp-us-west1.cloud.zilliz.com",
+        "token": "",
+        "db_name": "RHTAI",
+        "collection": "website_info_233",
+        "vector_field": "embedding",
+        "text_field": "text",
+        "metadata_field": "metadata",
+        "metric_type": "IP"
+      }
+    }
+  }'
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "tenant_id": "tenant_ABC123DEF456GHI789",
+#   "message": "Tenant registered successfully"
+# }
+
+# Save the tenant ID for subsequent requests
+export TENANT_ID="tenant_ABC123DEF456GHI789"
+
+bash
+
+tenant_CfmIhmjL0eY3vVqh90XI0g
+
+
+gcloud run services describe web3ai-backend-v65-api --region=us-central1
+
+Step 3: Verify System Capabilities
+Check Processing Capabilities
+curl -X GET https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/processing-capabilities \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw"
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "capabilities": {
+#     "providers": ["sentence_transformers", "voyageai"],
+#     "features": {
+#       "streaming_processing": true,
+#       "token_aware_chunking": true,
+#       "intelligent_batching": true,
+#       "progress_tracking": true,
+#       "large_file_support": true,
+#       "compression_support": ["gzip"],
+#       "formats_supported": ["json_array", "ndjson"]
+#     },
+#     "limits": {
+#       "max_file_size_mb": 1000,
+#       "max_tokens_per_chunk": 2000,
+#       "max_chunks_per_batch": 950,
+#       "max_tokens_per_batch": 9500
+#     }
+#   }
+# }
+
+bash
+
+
+
+Step 4: Analyze File Before Processing (Optional but Recommended)
+Get File Statistics and Processing Recommendations
+curl -X POST https://web3ai-backend-v33-api-180395924844.us-central1.run.app/rag/analyze-file \
+  -H "X-Tenant-Id: tenant_ikEWJmGOeFrj-cwLRKtWaw" \
+  -F "file=@/Users/finn/Desktop/BATCH/scrape/scraped_content_successful2.json"
+
+# Expected Response:
+# {
+#   "status": "ok",
+#   "file_analysis": {
+#     "file_size_bytes": 52428800,
+#     "detected_format": "json_array",
+#     "estimated_items": 2500,
+#     "file_path": "/tmp/large_dataset.json"
+#   },
+#   "processing_estimates": {
+#     "estimated_processing_time_minutes": 15,
+#     "estimated_chunks": 8750,
+#     "estimated_embedding_batches": 10
+#   },
+#   "recommendations": {
+#     "approach": "streaming",
+#     "use_batching": true,
+#     "enable_token_aware_chunking": true,
+#     "estimated_embedding_cost": {
+#       "provider": "voyageai",
+#       "estimated_api_calls": 10
+#     }
+#   }
+# }
+
+bash
+
+
+
+Step 5: Option A - Streaming File Upload for Large Files
+Prepare Schema Configuration
+Create a schema configuration file for your data structure:
+
+cat > schema_config.json << 'EOF'
+{
+  "format": "json_array",
+  "mapping": {
+    "content_path": "raw_text",
+    "metadata_paths": {
+      "url": "source_url",
+      "title": "document_title",
+      "category": "jurisdiction",
+      "scraped_at": "scraped_at_utc",
+      "extraction_method": "extraction_method"
+    }
+  },
+  "chunking": {
+    "strategy": "token_aware",
+    "max_tokens": 1000,
+    "overlap_tokens": 100
+  },
+  "validation_schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["raw_text", "source_url", "document_title"],
+    "properties": {
+      "raw_text": {"type": "string"},
+      "source_url": {"type": "string"},
+      "document_title": {"type": "string"},
+      "jurisdiction": {"type": "string"},
+      "scraped_at_utc": {"type": "string"},
+      "extraction_method": {"type": "string"}
+    }
+  }
+}
+EOF
+
+bash
+
+
+
+Execute Streaming Upload with Enhanced Features
+
+curl -X POST https://web3ai-backend-v67-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: tenant_vVdw1P_8ur10FyG58wFClg" \
+  -F "file=@/Users/finn/Desktop/STFU/WebAI/backend/anotherone.json" \
+  -F "schema_json=$(cat /Users/finn/Desktop/STFU/WebAI/backend/schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+Update Env Vars
+
+gcloud run services update web3ai-backend-v21-api \
+  --region us-central1 \
+  --update-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711,CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"
+# Expected Response:
+# {
+#   "status": "ok",
+#   "upserted": 8750,
+#   "dim": 1024,
+#   "processing_stats": {
+#     "total_items_processed": 2500,
+#     "total_chunks_created": 8750,
+#     "total_embeddings_generated": 8750,
+#     "batches_processed": 10,
+#     "avg_batch_size": 875,
+#     "processing_time_seconds": 892.5,
+#     "memory_efficient": true,
+#     "streaming_enabled": true,
+#     "token_aware_chunking": true
+#   },
+#   "cost_optimization": {
+#     "api_calls_made": 10,
+#     "api_calls_saved": 8740,
+#     "cost_reduction_percentage": 99.9
+#   }
+# }
+
+bash
+
+
+
+Alternative: Compressed File Upload
+If your file is compressed, the system automatically handles decompression:
+
+# Upload gzipped file (automatically detected and decompressed)
+curl -X POST https://web3ai-backend-v21-api-180395924844.us-central1.run.app/rag/ingest-file-streaming \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -F "file=@/path/to/your/large_dataset.json.gz" \
+  -F "schema_json=$(cat schema_config.json)" \
+  -F "embedding_provider=voyageai" \
+  -F "embedding_model=voyage-law-2" \
+  -F "enable_chunking_enhancement=true" \
+  -F "max_tokens_per_chunk=1000"
+
+
+# example of how to update variables
+  gcloud run services update web3ai-backend-v25-api \
+  --region us-central1 \
+  --update-env-vars="REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711,CONVERSATION_REDIS_URL=redis://:S0U8FJJglISDHBFVpc59mk3q9NKqsQjm@redis-13711.c124.us-central1-1.gce.redns.redis-cloud.com:13711"

@@ -1,0 +1,1 @@
+"use strict";(()=>{var e={};e.id=888,e.ids=[888],e.modules={968:e=>{e.exports=require("next/head")},997:e=>{e.exports=require("react/jsx-runtime")},9816:e=>{e.exports=require("styled-jsx/style")}};var r=require("../webpack-runtime.js");r.C(e);var __webpack_exec__=e=>r(r.s=e),s=r.X(0,[913],()=>__webpack_exec__(5913));module.exports=s})();

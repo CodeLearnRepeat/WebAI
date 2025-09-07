@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic
+pydantic-settings
+redis
+pymilvus>=2.4.4
+sentence-transformers>=3.0.0
+numpy
+openai>=1.37.0
+voyageai>=0.2.3
+jsonschema>=4.22.0
+python-multipart
+ijson>=3.2.0
+tiktoken>=0.5.0
+aiofiles>=23.0.0
+PyYAML
