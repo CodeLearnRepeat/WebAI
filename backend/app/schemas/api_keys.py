@@ -28,3 +28,12 @@ class KeyInfoResponse(BaseModel):
     identifier: Optional[str] = None
     format: Optional[str] = None
     valid: bool
+
+class KeyValidationRequest(BaseModel):
+    api_key: str = Field(..., description="API key to validate")
+    provider: Literal["openrouter"] = Field(..., description="Provider to validate against")
+
+class KeyValidationResponse(BaseModel):
+    valid: bool
+    models: Optional[List[str]] = None
+    error: Optional[str] = None

@@ -444,7 +444,7 @@ export class WebAITenantSetupApi extends WebAIApi {
         throw new Error('NEXT_PUBLIC_WEBAI_ADMIN_KEY environment variable is required');
       }
       
-      const response = await fetch(`${this.config.apiUrl}/register-tenant`, {
+      const response = await fetch(`${this.config.apiUrl}/tenants/register-tenant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

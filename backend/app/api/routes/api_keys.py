@@ -1,17 +1,20 @@
 from fastapi import APIRouter, HTTPException, Header, Query
 from app.core.config import settings
 from app.schemas.api_keys import (
-    KeyGenerationRequest, 
-    KeyGenerationResponse, 
-    KeyInfoRequest, 
+    KeyGenerationRequest,
+    KeyGenerationResponse,
+    KeyInfoRequest,
     KeyInfoResponse,
-    GeneratedKey
+    GeneratedKey,
+    KeyValidationRequest,
+    KeyValidationResponse
 )
 from app.services.api_keys import (
-    generate_api_key, 
-    generate_multiple_keys, 
+    generate_api_key,
+    generate_multiple_keys,
     get_key_info
 )
+from app.services.openrouter import validate_openrouter_key
 from datetime import datetime
 
 router = APIRouter()
@@ -150,3 +153,27 @@ async def get_key_examples():
             "description": "Tenant identifier with 'tenant_' prefix and URL-safe base64 suffix"
         }
     }
+
+@router.post("/validate", response_model=KeyValidationResponse)
+async def validate_api_key(request: KeyValidationRequest):
+    """Validate an API key against the specified provider.
+    
+    This endpoint validates API keys for external providers like OpenRouter.
+    Does not require authentication since it only validates format and connectivity.
+    """
+    try:
+        if request.provider == "openrouter":
+            result = await validate_openrouter_key(request.api_key)
+            return KeyValidationResponse(
+                valid=result["valid"],
+                models=result.get("models"),
+                error=result.get("error")
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported provider: {request.provider}")
+    
+    except Exception as e:
+        return KeyValidationResponse(
+            valid=False,
+            error=f"Validation failed: {str(e)}"
+        )
