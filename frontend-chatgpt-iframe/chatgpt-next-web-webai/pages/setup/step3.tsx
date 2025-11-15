@@ -10,11 +10,10 @@ import WizardLayout, { WizardStep } from '../../components/setup/WizardLayout';
 import { WebAITenantSetupApi, SystemCapabilities, createTenantSetupApi } from '../../lib/webai-api';
 
 const wizardSteps: WizardStep[] = [
-  { id: 1, title: 'Welcome', description: 'Introduction to setup', path: '/setup/step1', completed: true },
+  { id: 1, title: 'Welcome', description: 'Introduction to setup', path: '/', completed: true },
   { id: 2, title: 'Tenant Registration', description: 'Configure your tenant settings', path: '/setup/step2', completed: true },
   { id: 3, title: 'System Capabilities', description: 'Review available features', path: '/setup/step3' },
-  { id: 4, title: 'File Analysis', description: 'Upload and analyze files', path: '/setup/step4' },
-  { id: 5, title: 'File Processing', description: 'Configure processing pipeline', path: '/setup/step5' },
+  { id: 4, title: 'CMS Connection', description: 'Connect your website', path: '/setup/step4' },
 ];
 
 function SystemCapabilitiesPageContent() {

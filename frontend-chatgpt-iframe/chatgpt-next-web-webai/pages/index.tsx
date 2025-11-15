@@ -12,8 +12,7 @@ const wizardSteps: WizardStep[] = [
   { id: 1, title: 'Welcome', description: 'Introduction to setup', path: '/' },
   { id: 2, title: 'Tenant Registration', description: 'Configure your tenant settings', path: '/setup/step2' },
   { id: 3, title: 'System Capabilities', description: 'Review available features', path: '/setup/step3' },
-  { id: 4, title: 'File Analysis', description: 'Upload and analyze files', path: '/setup/step4' },
-  { id: 5, title: 'File Processing', description: 'Configure processing pipeline', path: '/setup/step5' },
+  { id: 4, title: 'CMS Connection', description: 'Connect your website', path: '/setup/step4' },
 ];
 
 function WelcomePageContent() {
